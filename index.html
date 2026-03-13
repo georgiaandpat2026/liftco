@@ -23,7 +23,7 @@
 <body>
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
+    const { useState, useEffect, useMemo, useRef } = React;
 
 
 const fontLink = document.createElement("link");
@@ -235,6 +235,45 @@ const COLORS = { Patrick: "#3a6186", Georgia: "#7a5c6e" };
 const FEEL_LABELS = ["", "Low", "Okay", "Good", "Great", "Strongest 💪"];
 const DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+function weekDaysFrom(anchorStr = todayStr()) {
+  const anchor = new Date(anchorStr + "T00:00:00");
+  anchor.setHours(0,0,0,0);
+  const mon = new Date(anchor);
+  mon.setDate(anchor.getDate() - ((anchor.getDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    return d.toISOString().split("T")[0];
+  });
+}
+
+function shiftDateStr(dateStr, days) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
+function monthLabel(dateStr) {
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
+function getMonthGrid(anchorStr = todayStr()) {
+  const anchor = new Date(anchorStr + "T00:00:00");
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const start = new Date(first);
+  start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+  return Array.from({ length: 35 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return {
+      str: d.toISOString().split("T")[0],
+      inMonth: d.getMonth() === anchor.getMonth(),
+      day: d.getDate(),
+    };
+  });
+}
+
+
 function getStreak(sessions) {
   if (!sessions.length) return 0;
   const dates = [...new Set(sessions.map(s => s.date))].sort().reverse();
@@ -256,6 +295,48 @@ function getLastWeight(sessions, profile, exName) {
     }
   }
   return null;
+}
+
+function getLastExerciseLog(sessions, profile, exName) {
+  const mine = [...sessions.filter(s => s.profile === profile)].reverse();
+  for (const s of mine) {
+    const ex = s.exercises?.find(e => e.name === exName);
+    if (!ex) continue;
+    const usableSets = (ex.sets || []).filter(set => Number(set.reps) || Number(set.weight) || Number(set.time));
+    if (usableSets.length) {
+      return {
+        date: s.date,
+        sets: usableSets.map(set => ({
+          reps: set.reps ? String(set.reps) : "",
+          weight: set.weight ? String(set.weight) : "",
+          time: set.time ? String(set.time) : "",
+        }))
+      };
+    }
+  }
+  return null;
+}
+
+function getDefaultSetsForExercise(sessions, profile, exName) {
+  const last = getLastExerciseLog(sessions, profile, exName);
+  return last?.sets?.length ? last.sets.map(set => ({ ...set })) : [{ reps: "", weight: "", time: "" }];
+}
+
+function cloneSessionForEdit(session) {
+  return {
+    ...session,
+    note: session.note || "",
+    sessionLabel: session.sessionLabel || "",
+    feeling: session.feeling || 0,
+    exercises: (session.exercises || []).map(ex => ({
+      ...ex,
+      sets: (ex.sets || []).map(set => ({
+        reps: set.reps ? String(set.reps) : "",
+        weight: set.weight ? String(set.weight) : "",
+        time: set.time ? String(set.time) : "",
+      }))
+    }))
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -281,24 +362,86 @@ const C = {
 // ─────────────────────────────────────────────────────────────────────────────
 // WEEK STRIP
 // ─────────────────────────────────────────────────────────────────────────────
-function WeekStrip({ sessions, profile, color }) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const mon = new Date(today); mon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(mon); d.setDate(mon.getDate() + i);
-    const str = d.toISOString().split("T")[0];
-    return { label: DAYS_SHORT[i], str, worked: sessions.some(s => s.profile === profile && s.date === str), isToday: str === todayStr() };
-  });
+function WeekStrip({ sessions, profile, color, selectedDate = todayStr(), onSelectDate }) {
+  const weekStart = weekDaysFrom(selectedDate)[0];
+  const days = weekDaysFrom(selectedDate).map((str, i) => ({
+    label: DAYS_SHORT[i],
+    str,
+    worked: sessions.some(s => s.profile === profile && s.date === str),
+    isToday: str === todayStr(),
+    isSelected: str === selectedDate,
+  }));
+
   return (
     <div style={{ ...C.card, padding: "11px 13px", marginBottom: 14 }}>
-      <span style={C.label}>This week</span>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ ...C.label, marginBottom: 0 }}>Week view</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button onClick={() => onSelectDate && onSelectDate(shiftDateStr(selectedDate, -7))} style={{ background: "#f5f2ee", border: "none", width: 26, height: 26, borderRadius: 8, cursor: "pointer", color: "#777", fontWeight: 700 }}>‹</button>
+          <div style={{ fontSize: 11, color: "#999", minWidth: 110, textAlign: "center" }}>{fmtDate(days[0].str)} – {fmtDate(days[6].str)}</div>
+          <button onClick={() => onSelectDate && onSelectDate(shiftDateStr(selectedDate, 7))} style={{ background: "#f5f2ee", border: "none", width: 26, height: 26, borderRadius: 8, cursor: "pointer", color: "#777", fontWeight: 700 }}>›</button>
+        </div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 4 }}>
         {days.map(d => (
-          <div key={d.str} style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: d.isToday ? color : "#bbb", fontWeight: d.isToday ? 700 : 400, marginBottom: 4 }}>{d.label}</div>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: d.worked ? color : d.isToday ? color + "18" : "#f5f2ee", border: `2px solid ${d.isToday ? color : "transparent"}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", fontSize: 12, color: d.worked ? "#fff" : "transparent" }}>✓</div>
-          </div>
+          <button
+            key={d.str}
+            onClick={() => onSelectDate && onSelectDate(d.str)}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "center", flex: 1, fontFamily: "'DM Sans',sans-serif" }}
+          >
+            <div style={{ fontSize: 10, color: d.isSelected || d.isToday ? color : "#bbb", fontWeight: d.isSelected || d.isToday ? 700 : 400, marginBottom: 4 }}>{d.label}</div>
+            <div style={{ width: 30, height: 30, borderRadius: "50%", background: d.worked ? color : d.isSelected ? color + "12" : d.isToday ? color + "10" : "#f5f2ee", border: `2px solid ${d.isSelected ? color : d.isToday ? color + "70" : "transparent"}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", fontSize: d.worked ? 13 : 12, color: d.worked ? "#fff" : d.isSelected ? color : "#d4cec7", fontWeight: 700, transition: "all 0.15s" }}>
+              {d.worked ? "🔥" : new Date(d.str + "T00:00:00").getDate()}
+            </div>
+          </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function MonthDots({ sessions, profile, color, selectedDate = todayStr(), onSelectDate }) {
+  const monthDays = getMonthGrid(selectedDate);
+  const workedDates = new Set(sessions.filter(s => s.profile === profile).map(s => s.date));
+  return (
+    <div style={{ ...C.card, padding: "12px 13px", marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <span style={{ ...C.label, marginBottom: 0 }}>Month view</span>
+        <div style={{ fontSize: 12, color: "#777", fontWeight: 600 }}>{monthLabel(selectedDate)}</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 5 }}>
+        {DAYS_SHORT.map(day => (
+          <div key={day} style={{ textAlign: "center", fontSize: 10, color: "#bbb", fontWeight: 600 }}>{day[0]}</div>
+        ))}
+        {monthDays.map(day => {
+          const isWorked = workedDates.has(day.str);
+          const isSelected = day.str === selectedDate;
+          const isToday = day.str === todayStr();
+          return (
+            <button
+              key={day.str}
+              onClick={() => onSelectDate && onSelectDate(day.str)}
+              style={{
+                border: `1.5px solid ${isSelected ? color : isToday ? color + "55" : "transparent"}`,
+                background: isWorked ? color + "18" : day.inMonth ? "#faf9f7" : "#f2efea",
+                borderRadius: 10,
+                minHeight: 40,
+                cursor: "pointer",
+                color: day.inMonth ? "#444" : "#bbb",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 2,
+                fontFamily: "'DM Sans',sans-serif",
+                fontWeight: isSelected ? 700 : 500,
+              }}
+            >
+              <span style={{ fontSize: 11 }}>{day.day}</span>
+              <span style={{ fontSize: 11, lineHeight: 1, opacity: isWorked ? 1 : 0.2 }}>{isWorked ? "🔥" : "·"}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -495,63 +638,82 @@ function getWorkoutSummary(selectedKeys, sessionLabel, profile) {
   // ── GEORGIA ──────────────────────────────────────────────────────────────
   if (sessionLabel.includes("Posture")) {
     return pick([
-      `Posture day done. The thoracic work, the neck, the deep core — all the stuff that quietly fixes everything else. Not glamorous. Completely essential.`,
-      `Day 3 complete. Your skeleton is grateful even if your ego isn't. ${count} exercises that are doing the slow, invisible work. It's working.`,
-      `Posture and aesthetics session logged. The day most people skip. You didn't. That's the whole game right there.`,
-      `${count} exercises done. This is the session that fixes posture, addresses the rib flare, and builds the things that last. Unglamorous and excellent.`,
+      `Posture day done. Quietly becoming the sort of woman who stands there and makes other people sit up straighter. ${count} exercises. Subtle. Dangerous.`,
+      `Day 3 complete. Deep core, thoracic work, neck, posture. The sexy admin session. Nobody claps for it but everybody notices the result.`,
+      `Posture and aesthetics session logged. ${count} exercises of extremely unglamorous work that somehow ends in a very good silhouette. Funny how that happens.`,
+      `${count} exercises done. Rib flare handled, posture handled, whole frame getting that tall composed look. Low drama. High payoff.`,
     ]);
   }
   if (sessionLabel.includes("Pull") && has("back") && has("arms")) {
     return pick([
-      `Pull day done. Rows, hamstrings, biceps, rear delts — ${count} exercises. The back of the body is getting serious. You'll feel it in the best way tomorrow.`,
-      `Back, arms, posterior chain — all covered. ${count} exercises. This is the session that changes your shape and your posture at the same time.`,
-      `Pull day complete. Every row is quietly pulling your shoulders back. Every rear delt rep is doing work you'll see in three weeks. ${count} exercises well spent.`,
+      `Pull day done. Rows, hamstrings, biceps, rear delts — ${count} exercises. Back getting stronger, arms getting prettier, posture getting meaner. Very nice.`,
+      `Back, arms, posterior chain — all covered. ${count} exercises. This is the kind of session that makes sleeves and posture both start behaving differently.`,
+      `Pull day complete. Every row is dragging the shoulders back into place and every rear delt rep is adding a little something to the whole situation. ${count} exercises well spent.`,
+      `Back and arms on the same day? ${count} exercises. The line from shoulder to arm is starting to get cheeky and we are noticing.`,
     ]);
   }
   if (sessionLabel.includes("Pull")) {
     return pick([
-      `Pull day logged. The muscles that hold your posture together just got a lot stronger. ${count} exercises. Solid session.`,
-      `Day 2 done. Rows, hamstrings, the pulling muscles — ${count} exercises that are directly building the things your osteo is also working on. Double time.`,
+      `Pull day logged. ${count} exercises. The muscles that hold everything together just got stronger and the shape payoff is going to be smug.`,
+      `Day 2 done. Rows, hamstrings, pulling work — ${count} exercises building the sort of back that makes clothes sit better without asking permission.`,
+      `Pull session complete. ${count} exercises. Very elegant way to become more formidable, actually.`,
     ]);
   }
   if (sessionLabel.includes("Push") && has("glutes")) {
     return pick([
-      `Push day with glutes — chest, shoulders, legs, and the glute activation that starts everything. ${count} exercises. Very well-rounded session.`,
-      `Day 1 complete. Upper body push, legs, glutes — ${count} exercises. That's an efficient session. The whole front and bottom half sorted.`,
+      `Push day with glutes — chest, shoulders, legs, and glute activation. ${count} exercises. Front, bottom, all sorted. A very convincing arrangement.`,
+      `Day 1 complete. Upper body push, legs, glutes — ${count} exercises. Efficient, shapely, faintly threatening. Excellent.`,
+      `Push day plus glutes. ${count} exercises. The kind of combination that makes jeans and necklines both start behaving differently.`,
     ]);
   }
   if (sessionLabel.includes("Push")) {
     return pick([
-      `Push day done. ${count} exercises — chest, shoulders, triceps, legs. The upper body push is sorted. You'll feel this tomorrow in the satisfying way.`,
-      `Day 1 complete. ${count} exercises. The push muscles are handled. Good session.`,
+      `Push day done. ${count} exercises — chest, shoulders, triceps, legs. Strong, upright, slightly too competent. Love that for you.`,
+      `Day 1 complete. ${count} exercises. The push muscles are handled and the upper body is developing opinions.`,
+      `Push session logged. ${count} exercises. This is how you quietly become a problem in a fitted top.`,
     ]);
   }
   if (has("glutes") && has("posterior") && has("legs"))
-    return `Glutes, hamstrings, legs — the full lower body. ${count} exercises targeting the biggest muscles in the body. This is the session that changes your shape fastest.`;
+    return pick([
+      `Glutes, hamstrings, legs — the full lower-body event. ${count} exercises. Very 'walk past a mirror and circle back' energy.`,
+      `Full lower body done. ${count} exercises. The whole back-half-and-legs arrangement is starting to get extremely persuasive.`,
+      `Glutes, hammies, legs. ${count} exercises. This is the kind of session that makes denim nervous. 🍑`,
+    ]);
   if (has("glutes") && has("posterior"))
     return pick([
-      `Glutes and hamstrings — the back of the body covered. ${count} exercises. The visible change happens here first.`,
-      `Posterior chain done. Glutes and hammies — ${count} exercises. The results from these show up before anything else.`,
+      `Glutes and hamstrings — ${count} exercises. Back of the body fully addressed. A cheeky little power move, honestly.`,
+      `Posterior chain done. Glutes and hammies — ${count} exercises. The visible change happens here first and it rarely arrives quietly.`,
+      `Glutes and hamstrings in one hit. ${count} exercises. Respectfully, this is how situations develop.`,
     ]);
   if (has("back") && has("arms"))
-    return `Back and arms — ${count} exercises. The upper body pulling strength that shows up in posture before it shows up anywhere else.`;
+    return pick([
+      `Back and arms — ${count} exercises. The upper body line is getting very self-assured all of a sudden.`,
+      `Back and arms done. ${count} exercises. Strong posture, prettier arms, better silhouette. Efficient and a bit smug.`,
+      `${count} exercises. Back and arms together is a very cheeky combination. It tends to show up everywhere at once.`,
+    ]);
   if (has("core") && has("posture"))
     return pick([
-      `Core and posture work done. ${count} exercises directly addressing the rib flare. Less exciting than squats. More important than squats.`,
-      `The deep core and posture session. ${count} exercises. Your osteo would absolutely approve. You did the thing.`,
+      `Core and posture work done. ${count} exercises directly addressing the rib flare. Less glamorous than a pump, more devastating over time.`,
+      `Deep core and posture session. ${count} exercises. Your osteo would approve and your clothes will eventually start fitting with a little more attitude.`,
+      `${count} exercises of core and posture work. The boringly intelligent route to looking put together. Annoying, but true.`,
     ]);
   if (has("shoulders"))
-    return `Shoulder session done. ${count} exercises. The lateral raises are doing more than you think — the definition shows up there first.`;
+    return pick([
+      `Shoulder session done. ${count} exercises. The caps are coming along and they are not being subtle about it.`,
+      `${count} shoulder exercises. The lateral raises are doing exactly what they threaten to do. Very cheeky little line through the upper body.`,
+      `Shoulders logged. ${count} exercises. A nice controlled way to become more of a situation from the front.`,
+    ]);
   return pick([
-    `${count} exercises logged. Every session stacks. This one counts.`,
-    `Session done. ${count} exercises. Showed up, did the work. That's the whole thing.`,
+    `${count} exercises logged. Every session stacks. This one definitely did something.`,
+    `Session done. ${count} exercises. Quietly building a very convincing case for yourself.`,
+    `${count} exercises in the bank. Strong, composed, and slightly more dangerous than before.`,
   ]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LOG PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function LogPage({ profile, color, sessions, onSave }) {
+function LogPage({ profile, color, sessions, onSave, selectedDate, onSelectDate }) {
   const profileSessions = SESSIONS[profile];
   const [selSession, setSelSession] = useState(null);
   const [selected, setSelected]     = useState([]);
@@ -561,10 +723,11 @@ function LogPage({ profile, color, sessions, onSave }) {
   const [sets, setSets]             = useState({});
   const [warned, setWarned]         = useState(false);
   const [summary, setSummary]        = useState("");
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const toggleEx = (key) => {
     setSelected(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
-    setSets(prev => prev[key] ? prev : { ...prev, [key]: [{ reps: "", weight: "", time: "" }] });
+    setSets(prev => prev[key] ? prev : { ...prev, [key]: getDefaultSetsForExercise(sessions, profile, EX[key]?.name) });
   };
 
   const addSet    = (k) => setSets(p => ({ ...p, [k]: [...(p[k]||[]), { reps: "", weight: "", time: "" }] }));
@@ -581,7 +744,7 @@ function LogPage({ profile, color, sessions, onSave }) {
 
   const save = () => {
     onSave({
-      id: Date.now(), date: todayStr(), profile, feeling, note,
+      id: Date.now(), date: selectedDate || todayStr(), profile, feeling, note,
       sessionLabel: selSession?.label || "",
       exercises: selected.filter(k => EX[k]).map(k => ({ name: EX[k].name, sets: sets[k] || [] })),
     });
@@ -625,12 +788,14 @@ function LogPage({ profile, color, sessions, onSave }) {
       {selected.filter(k => EX[k]).map(k => {
         const ex = EX[k];
         const last = getLastWeight(sessions, profile, ex.name);
+        const lastLog = getLastExerciseLog(sessions, profile, ex.name);
         return (
           <div key={k} style={C.card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 9 }}>
               <div>
                 <div style={{ fontWeight: 600, fontSize: 14 }}>{ex.name}</div>
                 {last && <div style={{ fontSize: 11, color, marginTop: 2, fontWeight: 500 }}>Last: {last.weight}kg · {fmtDate(last.date)}</div>}
+                {lastLog && <div style={{ fontSize: 11, color: "#999", marginTop: 3 }}>Auto-filled from {fmtDate(lastLog.date)} · change anything you want</div>}
               </div>
               <button onClick={() => { setSelected(p => p.filter(x => x !== k)); }} style={{ background: "none", border: "none", color: "#ddd", fontSize: 20, cursor: "pointer" }}>×</button>
             </div>
@@ -670,9 +835,19 @@ function LogPage({ profile, color, sessions, onSave }) {
 
   return (
     <div style={C.page}>
-      <WeekStrip sessions={sessions} profile={profile} color={color} />
-      <div style={C.h1}>Today's workout</div>
-      <div style={C.sub}>Choose your session then pick your exercises</div>
+      <WeekStrip sessions={sessions} profile={profile} color={color} selectedDate={selectedDate} onSelectDate={onSelectDate} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showCalendar ? 10 : 14 }}>
+        <button
+          onClick={() => setShowCalendar(v => !v)}
+          style={{ ...C.btn(color, true), padding: "8px 12px", fontSize: 12 }}
+        >
+          {showCalendar ? "Hide month" : "Show month"}
+        </button>
+        <div style={{ fontSize: 12, color: "#999", fontWeight: 600 }}>{monthLabel(selectedDate)}</div>
+      </div>
+      {showCalendar && <MonthDots sessions={sessions} profile={profile} color={color} selectedDate={selectedDate} onSelectDate={onSelectDate} />}
+      <div style={C.h1}>{selectedDate === todayStr() ? "Today's workout" : `Workout for ${fmtDate(selectedDate)}`}</div>
+      <div style={C.sub}>Choose your session then pick your exercises · tap a day above to switch</div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {profileSessions.map(s => (
@@ -715,16 +890,105 @@ function LogPage({ profile, color, sessions, onSave }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // HISTORY PAGE
 // ─────────────────────────────────────────────────────────────────────────────
-function HistoryPage({ profile, color, sessions, onUpdate, onDelete }) {
-  const mine = sessions.filter(s => s.profile === profile).sort((a,b) => b.date.localeCompare(a.date));
-  const [editing, setEditing] = useState(null);
-  const [editNote, setEditNote] = useState("");
+function HistoryPage({ profile, color, sessions, onUpdate, onDelete, onExport, onImportData, selectedDate, onSelectDate }) {
+  const mine = sessions.filter(s => s.profile === profile).sort((a,b) => b.date.localeCompare(a.date) || b.id - a.id);
+  const filtered = selectedDate ? mine.filter(s => s.date === selectedDate) : mine;
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const fileRef = useRef(null);
+
+  const openEditor = (session) => {
+    setEditingId(session.id);
+    setDraft(cloneSessionForEdit(session));
+  };
+
+  const closeEditor = () => {
+    setEditingId(null);
+    setDraft(null);
+  };
+
+  const updateDraftField = (field, value) => setDraft(prev => ({ ...prev, [field]: value }));
+  const updateDraftSet = (exIdx, setIdx, field, value) => {
+    setDraft(prev => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => i !== exIdx ? ex : {
+        ...ex,
+        sets: ex.sets.map((set, j) => j !== setIdx ? set : { ...set, [field]: value })
+      })
+    }));
+  };
+  const addDraftSet = (exIdx) => {
+    setDraft(prev => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => i !== exIdx ? ex : {
+        ...ex,
+        sets: [...(ex.sets || []), { reps: "", weight: "", time: "" }]
+      })
+    }));
+  };
+  const removeDraftSet = (exIdx, setIdx) => {
+    setDraft(prev => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => i !== exIdx ? ex : {
+        ...ex,
+        sets: (ex.sets || []).filter((_, j) => j !== setIdx)
+      })
+    }));
+  };
+
+  const saveDraft = () => {
+    if (!draft) return;
+    onUpdate({
+      ...draft,
+      exercises: (draft.exercises || []).map(ex => ({
+        ...ex,
+        sets: (ex.sets || []).filter(set => Number(set.reps) || Number(set.weight) || Number(set.time))
+      }))
+    });
+    closeEditor();
+  };
+
+  const triggerImport = () => fileRef.current?.click();
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      onImportData(parsed);
+    } catch (err) {
+      window.alert("That file couldn't be read. Please import a LIFTco backup JSON file.");
+    } finally {
+      e.target.value = "";
+    }
+  };
 
   return (
     <div style={C.page}>
-      <div style={C.h1}>History</div>
-      <div style={C.sub}>{profile}'s sessions</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9, marginBottom: 16 }}>
+      <WeekStrip sessions={sessions} profile={profile} color={color} selectedDate={selectedDate} onSelectDate={onSelectDate} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showCalendar ? 10 : 14 }}>
+        <button
+          onClick={() => setShowCalendar(v => !v)}
+          style={{ ...C.btn(color, true), padding: "8px 12px", fontSize: 12 }}
+        >
+          {showCalendar ? "Hide month" : "Show month"}
+        </button>
+        <div style={{ fontSize: 12, color: "#999", fontWeight: 600 }}>{monthLabel(selectedDate)}</div>
+      </div>
+      {showCalendar && <MonthDots sessions={sessions} profile={profile} color={color} selectedDate={selectedDate} onSelectDate={onSelectDate} />}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 10 }}>
+        <div>
+          <div style={C.h1}>History</div>
+          <div style={C.sub}>{selectedDate ? `${profile}'s sessions on ${fmtDate(selectedDate)}` : `${profile}'s sessions`}</div>
+        </div>
+        {selectedDate && selectedDate !== todayStr() && (
+          <button style={{ ...C.btn("#aaa", true), padding: "7px 12px", fontSize: 12 }} onClick={() => onSelectDate && onSelectDate(todayStr())}>Jump to today</button>
+        )}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9, marginBottom: 12 }}>
         {[{ val: getStreak(mine), label: "day streak", suf: "🔥" }, { val: mine.length, label: "sessions" }, { val: mine.filter(s => s.feeling >= 4).length, label: "great days" }].map(({ val, label, suf }) => (
           <div key={label} style={{ ...C.card, textAlign: "center", padding: "12px 8px", marginBottom: 0 }}>
             <div style={{ fontSize: 27, fontWeight: 300, color, lineHeight: 1 }}>{val}{suf||""}</div>
@@ -732,45 +996,108 @@ function HistoryPage({ profile, color, sessions, onUpdate, onDelete }) {
           </div>
         ))}
       </div>
-      {mine.length === 0 && <div style={{ textAlign: "center", color: "#ccc", fontSize: 14, marginTop: 50 }}>No sessions yet!</div>}
-      {mine.map(s => (
-        <div key={s.id} style={C.card}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>{fmtDate(s.date)}{s.sessionLabel ? ` · ${s.sessionLabel}` : ""}</div>
-              <div style={{ fontSize: 12, color: "#aaa", marginTop: 1 }}>{s.exercises?.length || 0} exercises</div>
+
+      <div style={{ ...C.card, display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        <button style={{ ...C.btn(color), padding: "10px 14px", fontSize: 12 }} onClick={onExport}>Export backup</button>
+        <button style={{ ...C.btn(color, true), padding: "10px 14px", fontSize: 12 }} onClick={triggerImport}>Import backup</button>
+        <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={handleImportFile} />
+        <div style={{ fontSize: 11, color: "#999", alignSelf: "center" }}>Backups are browser-safe, not cloud sync.</div>
+      </div>
+
+      {filtered.length === 0 && <div style={{ textAlign: "center", color: "#ccc", fontSize: 14, marginTop: 50 }}>{selectedDate ? "No session logged for this day yet." : "No sessions yet!"}</div>}
+
+      {filtered.map(s => {
+        const isEditing = editingId === s.id && draft;
+        return (
+          <div key={s.id} style={C.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{fmtDate(s.date)}{s.sessionLabel ? ` · ${s.sessionLabel}` : ""}</div>
+                <div style={{ fontSize: 12, color: "#aaa", marginTop: 1 }}>{s.exercises?.length || 0} exercises</div>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {s.feeling > 0 && <div style={{ background: color+"20", color, borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 600 }}>{FEEL_LABELS[s.feeling]}</div>}
+                <button onClick={() => openEditor(s)} style={{ background:"none", border:"none", fontSize:14, cursor:"pointer", color:"#bbb" }}>✎</button>
+                <button onClick={() => { if(window.confirm("Delete this session?")) onDelete(s.id); }} style={{ background:"none", border:"none", fontSize:17, cursor:"pointer", color:"#ddd" }}>×</button>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {s.feeling > 0 && <div style={{ background: color+"20", color, borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 600 }}>{FEEL_LABELS[s.feeling]}</div>}
-              <button onClick={() => { setEditing(s.id); setEditNote(s.note||""); }} style={{ background:"none", border:"none", fontSize:14, cursor:"pointer", color:"#bbb" }}>✎</button>
-              <button onClick={() => { if(window.confirm("Delete this session?")) onDelete(s.id); }} style={{ background:"none", border:"none", fontSize:17, cursor:"pointer", color:"#ddd" }}>×</button>
-            </div>
-          </div>
-          {s.exercises?.map(ex => (
-            <div key={ex.name} style={{ marginBottom: 7 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{ex.name}</div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {ex.sets?.filter(s => s.reps||s.weight).map((set,i) => (
-                  <div key={i} style={{ background: "#f5f2ee", borderRadius: 6, padding: "3px 8px", fontSize: 12, color: "#666" }}>
-                    S{i+1}: {[set.time&&`${set.time}s`, set.reps&&`${set.reps}r`, set.weight&&`${set.weight}kg`].filter(Boolean).join(" · ")}
+
+            {isEditing ? (
+              <div style={{ borderTop: "1px solid #f0ece7", paddingTop: 10, marginTop: 6 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                  <div>
+                    <div style={{ ...C.label, marginBottom: 6 }}>Date</div>
+                    <input style={C.input} type="date" value={draft.date} onChange={e => updateDraftField("date", e.target.value)} />
+                  </div>
+                  <div>
+                    <div style={{ ...C.label, marginBottom: 6 }}>Session</div>
+                    <input style={C.input} value={draft.sessionLabel} onChange={e => updateDraftField("sessionLabel", e.target.value)} placeholder="Upper body" />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ ...C.label, marginBottom: 6 }}>How it felt</div>
+                  <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+                    {[1,2,3,4,5].map(n => (
+                      <div key={n} onClick={() => updateDraftField("feeling", n === draft.feeling ? 0 : n)} style={{ width: 34, height: 34, borderRadius: "50%", border: `2px solid ${n <= (draft.feeling || 0) ? color : "#e0dcd6"}`, background: n <= (draft.feeling || 0) ? color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 12, fontWeight: 600, color: n <= (draft.feeling || 0) ? "#fff" : "#ccc" }}>{n}</div>
+                    ))}
+                    {draft.feeling > 0 && <span style={{ fontSize: 12, color: "#999", marginLeft: 3 }}>{FEEL_LABELS[draft.feeling]}</span>}
+                  </div>
+                </div>
+
+                {draft.exercises?.map((ex, exIdx) => {
+                  const exKey = Object.keys(EX).find(key => EX[key]?.name === ex.name);
+                  const lt = exKey ? logType(exKey) : (ex.sets?.some(set => Number(set.weight)) ? "weighted" : ex.sets?.some(set => Number(set.time)) ? "time" : "reps");
+                  return (
+                    <div key={ex.name} style={{ border: "1px solid #f1ede8", borderRadius: 12, padding: 10, marginBottom: 9, background: "#fcfbf9" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{ex.name}</div>
+                      {(ex.sets || []).length === 0 && <div style={{ fontSize: 12, color: "#aaa", marginBottom: 8 }}>No sets saved yet.</div>}
+                      {(ex.sets || []).map((set, setIdx) => (
+                        <div key={setIdx} style={{ display: "grid", gridTemplateColumns: lt === "weighted" ? "26px 1fr 1fr 22px" : "26px 1fr 22px", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                          <div style={{ fontSize: 11, color: "#bbb", fontWeight: 600, textAlign: "center" }}>{lt === "time" ? `H${setIdx+1}` : `S${setIdx+1}`}</div>
+                          {lt === "time"     && <input style={C.input} type="number" inputMode="numeric" value={set.time} onChange={e => updateDraftSet(exIdx, setIdx, "time", e.target.value)} placeholder="30" />}
+                          {lt === "reps"     && <input style={C.input} type="number" inputMode="numeric" value={set.reps} onChange={e => updateDraftSet(exIdx, setIdx, "reps", e.target.value)} placeholder="12" />}
+                          {lt === "weighted" && <><input style={C.input} type="number" inputMode="numeric" value={set.reps} onChange={e => updateDraftSet(exIdx, setIdx, "reps", e.target.value)} placeholder="12" /><input style={C.input} type="number" inputMode="decimal" value={set.weight} onChange={e => updateDraftSet(exIdx, setIdx, "weight", e.target.value)} placeholder="20" /></>}
+                          <button onClick={() => removeDraftSet(exIdx, setIdx)} style={{ background:"none", border:"none", color:"#ddd", fontSize:15, cursor:"pointer" }}>×</button>
+                        </div>
+                      ))}
+                      <button style={{ ...C.btn(color, true), fontSize: 12, padding: "6px 12px" }} onClick={() => addDraftSet(exIdx)}>+ set</button>
+                    </div>
+                  );
+                })}
+
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ ...C.label, marginBottom: 6 }}>Session note</div>
+                  <textarea style={{ ...C.input, minHeight: 56, resize: "none" }} value={draft.note} onChange={e => updateDraftField("note", e.target.value)} />
+                </div>
+
+                <div style={{ display: "flex", gap: 7 }}>
+                  <button style={{ ...C.btn(color), fontSize:12, padding:"8px 13px" }} onClick={saveDraft}>Save changes</button>
+                  <button style={{ ...C.btn("#aaa",true), fontSize:12, padding:"8px 13px" }} onClick={closeEditor}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {s.exercises?.map(ex => (
+                  <div key={ex.name} style={{ marginBottom: 7 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{ex.name}</div>
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                      {ex.sets?.filter(set => set.reps||set.weight||set.time).map((set,i) => (
+                        <div key={i} style={{ background: "#f5f2ee", borderRadius: 6, padding: "3px 8px", fontSize: 12, color: "#666" }}>
+                          S{i+1}: {[set.time&&`${set.time}s`, set.reps&&`${set.reps}r`, set.weight&&`${set.weight}kg`].filter(Boolean).join(" · ")}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          ))}
-          {editing === s.id ? (
-            <div style={{ borderTop: "1px solid #f0ece7", paddingTop: 9, marginTop: 6 }}>
-              <textarea style={{ ...C.input, minHeight: 56, resize: "none", marginBottom: 7 }} value={editNote} onChange={e => setEditNote(e.target.value)} />
-              <div style={{ display: "flex", gap: 7 }}>
-                <button style={{ ...C.btn(color), fontSize:12, padding:"7px 13px" }} onClick={() => { onUpdate({...s, note:editNote}); setEditing(null); }}>Save</button>
-                <button style={{ ...C.btn("#aaa",true), fontSize:12, padding:"7px 13px" }} onClick={() => setEditing(null)}>Cancel</button>
-              </div>
-            </div>
-          ) : s.note ? (
-            <div style={{ fontSize:12, color:"#999", borderTop:"1px solid #f5f2ee", paddingTop:7, marginTop:5, fontStyle:"italic" }}>"{s.note}"</div>
-          ) : null}
-        </div>
-      ))}
+                {s.note ? (
+                  <div style={{ fontSize:12, color:"#999", borderTop:"1px solid #f5f2ee", paddingTop:7, marginTop:5, fontStyle:"italic" }}>"{s.note}"</div>
+                ) : null}
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -869,13 +1196,63 @@ const NAV = [{ id:"log", label:"Workout", icon:"⊕" }, { id:"history", label:"H
 function App() {
   const [profile, setProfile] = useState(() => storage.get("lc_profile") || "Patrick");
   const [tab, setTab]         = useState("log");
+  const [selectedDate, setSelectedDate] = useState(() => storage.get("lc_selected_date") || todayStr());
   const [sessions, setSessions] = useState(() => storage.get("lc_sessions") || []);
   const color = COLORS[profile];
   useEffect(() => { storage.set("lc_profile", profile); }, [profile]);
+  useEffect(() => { storage.set("lc_selected_date", selectedDate); }, [selectedDate]);
   useEffect(() => { storage.set("lc_sessions", sessions); }, [sessions]);
   const saveSession   = s => setSessions(p => [...p, s]);
   const updateSession = u => setSessions(p => p.map(s => s.id===u.id ? u : s));
   const deleteSession = id => setSessions(p => p.filter(s => s.id!==id));
+
+  const exportData = () => {
+    const payload = {
+      app: "LIFTco",
+      exportedAt: new Date().toISOString(),
+      selectedDate,
+      sessions,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `liftco-backup-${todayStr()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (payload) => {
+    const incoming = Array.isArray(payload) ? payload : payload?.sessions;
+    if (!Array.isArray(incoming)) {
+      window.alert("That file doesn't look like a valid LIFTco backup.");
+      return;
+    }
+    const cleaned = incoming.map((s, idx) => ({
+      id: s.id || Date.now() + idx,
+      date: s.date || todayStr(),
+      profile: s.profile || "Georgia",
+      feeling: Number(s.feeling) || 0,
+      note: s.note || "",
+      sessionLabel: s.sessionLabel || "",
+      exercises: (s.exercises || []).map(ex => ({
+        name: ex.name || "Exercise",
+        sets: (ex.sets || []).map(set => ({
+          reps: set.reps ? String(set.reps) : "",
+          weight: set.weight ? String(set.weight) : "",
+          time: set.time ? String(set.time) : "",
+        }))
+      }))
+    }));
+    if (!window.confirm(`Import ${cleaned.length} sessions? This will replace the current data on this device.`)) return;
+    setSessions(cleaned);
+    const importedDate = Array.isArray(payload) ? null : payload?.selectedDate;
+    setSelectedDate(importedDate || todayStr());
+    setTab("history");
+    window.alert("Backup imported.");
+  };
 
   return (
     <div style={C.app}>
@@ -885,8 +1262,8 @@ function App() {
           {["Patrick","Georgia"].map(p => <button key={p} style={C.profBtn(profile===p, COLORS[p])} onClick={()=>setProfile(p)}>{p}</button>)}
         </div>
       </div>
-      {tab==="log"      && <LogPage      key={`log-${profile}`}  profile={profile} color={color} sessions={sessions} onSave={saveSession} />}
-      {tab==="history"  && <HistoryPage  key={`hist-${profile}`} profile={profile} color={color} sessions={sessions} onUpdate={updateSession} onDelete={deleteSession} />}
+      {tab==="log"      && <LogPage      key={`log-${profile}`}  profile={profile} color={color} sessions={sessions} onSave={saveSession} selectedDate={selectedDate} onSelectDate={setSelectedDate} />}
+      {tab==="history"  && <HistoryPage  key={`hist-${profile}`} profile={profile} color={color} sessions={sessions} onUpdate={updateSession} onDelete={deleteSession} onExport={exportData} onImportData={importData} selectedDate={selectedDate} onSelectDate={setSelectedDate} />}
       {tab==="progress" && <ProgressPage key={`prog-${profile}`} profile={profile} color={color} sessions={sessions} />}
       <nav style={C.nav}>
         {NAV.map(n => (
