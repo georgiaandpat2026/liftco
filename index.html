@@ -11,6 +11,7 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body { background: #f7f6f3; overscroll-behavior: none; }
@@ -30,6 +31,37 @@ const fontLink = document.createElement("link");
 fontLink.rel = "stylesheet";
 fontLink.href = "https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Serif+Display:ital@0;1&display=swap";
 document.head.appendChild(fontLink);
+
+const SUPABASE_URL = "https://tuayjepvyavkypseviyb.supabase.co";
+const SUPABASE_KEY = "sb_publishable_tpHLOx-o8pPJoxzkoRbavw_mAH5AhyV";
+const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const CLOUD_TABLE = "Sessions";
+
+function toCloudPayload(session) {
+  const { cloudRowId, ...clean } = session || {};
+  return {
+    date: clean.date || todayStr(),
+    person: clean.profile || "Georgia",
+    session: clean.sessionLabel || "",
+    data: clean,
+  };
+}
+
+function fromCloudRow(row) {
+  const payload = row?.data || {};
+  return {
+    ...payload,
+    id: payload.id || row.id,
+    profile: payload.profile || row.person || "Georgia",
+    date: payload.date || row.date || todayStr(),
+    sessionLabel: payload.sessionLabel || row.session || "",
+    feeling: Number(payload.feeling) || 0,
+    note: payload.note || "",
+    exercises: Array.isArray(payload.exercises) ? payload.exercises : [],
+    cloudRowId: row.id,
+  };
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EXERCISE LIBRARY
@@ -1198,20 +1230,96 @@ function App() {
   const [tab, setTab]         = useState("log");
   const [selectedDate, setSelectedDate] = useState(() => storage.get("lc_selected_date") || todayStr());
   const [sessions, setSessions] = useState(() => storage.get("lc_sessions") || []);
+  const [cloudStatus, setCloudStatus] = useState(supabase ? "Connecting…" : "Cloud off");
   const color = COLORS[profile];
+
   useEffect(() => { storage.set("lc_profile", profile); }, [profile]);
   useEffect(() => { storage.set("lc_selected_date", selectedDate); }, [selectedDate]);
   useEffect(() => { storage.set("lc_sessions", sessions); }, [sessions]);
-  const saveSession   = s => setSessions(p => [...p, s]);
-  const updateSession = u => setSessions(p => p.map(s => s.id===u.id ? u : s));
-  const deleteSession = id => setSessions(p => p.filter(s => s.id!==id));
+
+  const fetchCloudSessions = async (quiet = false) => {
+    if (!supabase) return;
+    if (!quiet) setCloudStatus("Syncing…");
+    const { data, error } = await supabase
+      .from(CLOUD_TABLE)
+      .select("id, created_at, date, person, session, data")
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("Supabase load error", error);
+      setCloudStatus("Cloud error");
+      return;
+    }
+    const mapped = (data || []).map(fromCloudRow);
+    setSessions(mapped);
+    setCloudStatus("Cloud on");
+  };
+
+  useEffect(() => {
+    fetchCloudSessions();
+    if (!supabase) return;
+    const onFocus = () => fetchCloudSessions(true);
+    window.addEventListener("focus", onFocus);
+    const timer = setInterval(() => fetchCloudSessions(true), 10000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      clearInterval(timer);
+    };
+  }, []);
+
+  const saveSession = async (s) => {
+    const localSession = { ...s };
+    setSessions(p => [...p, localSession]);
+    if (!supabase) return;
+    setCloudStatus("Syncing…");
+    const { error } = await supabase.from(CLOUD_TABLE).insert(toCloudPayload(localSession));
+    if (error) {
+      console.error("Supabase insert error", error);
+      setCloudStatus("Cloud error");
+      window.alert("Workout saved on this device, but cloud sync failed.");
+      return;
+    }
+    await fetchCloudSessions(true);
+  };
+
+  const updateSession = async (u) => {
+    setSessions(p => p.map(s => s.id===u.id ? { ...s, ...u } : s));
+    if (!supabase) return;
+    if (!u.cloudRowId) {
+      await fetchCloudSessions(true);
+      return;
+    }
+    setCloudStatus("Syncing…");
+    const { error } = await supabase.from(CLOUD_TABLE).update(toCloudPayload(u)).eq("id", u.cloudRowId);
+    if (error) {
+      console.error("Supabase update error", error);
+      setCloudStatus("Cloud error");
+      window.alert("Cloud sync failed while updating that session.");
+      return;
+    }
+    await fetchCloudSessions(true);
+  };
+
+  const deleteSession = async (id) => {
+    const target = sessions.find(s => s.id === id);
+    setSessions(p => p.filter(s => s.id!==id));
+    if (!supabase || !target?.cloudRowId) return;
+    setCloudStatus("Syncing…");
+    const { error } = await supabase.from(CLOUD_TABLE).delete().eq("id", target.cloudRowId);
+    if (error) {
+      console.error("Supabase delete error", error);
+      setCloudStatus("Cloud error");
+      window.alert("Cloud sync failed while deleting that session.");
+      return;
+    }
+    await fetchCloudSessions(true);
+  };
 
   const exportData = () => {
     const payload = {
       app: "LIFTco",
       exportedAt: new Date().toISOString(),
       selectedDate,
-      sessions,
+      sessions: sessions.map(({ cloudRowId, ...rest }) => rest),
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -1224,7 +1332,33 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  const importData = (payload) => {
+  const replaceCloudWith = async (cleaned) => {
+    if (!supabase) {
+      setSessions(cleaned);
+      return;
+    }
+    setCloudStatus("Syncing…");
+    const { error: delError } = await supabase.from(CLOUD_TABLE).delete().not("id", "is", null);
+    if (delError) {
+      console.error("Supabase replace delete error", delError);
+      setCloudStatus("Cloud error");
+      window.alert("Could not clear the cloud data before import.");
+      return;
+    }
+    if (cleaned.length) {
+      const rows = cleaned.map(toCloudPayload);
+      const { error: insError } = await supabase.from(CLOUD_TABLE).insert(rows);
+      if (insError) {
+        console.error("Supabase replace insert error", insError);
+        setCloudStatus("Cloud error");
+        window.alert("Could not upload the imported sessions to the cloud.");
+        return;
+      }
+    }
+    await fetchCloudSessions(true);
+  };
+
+  const importData = async (payload) => {
     const incoming = Array.isArray(payload) ? payload : payload?.sessions;
     if (!Array.isArray(incoming)) {
       window.alert("That file doesn't look like a valid LIFTco backup.");
@@ -1246,8 +1380,8 @@ function App() {
         }))
       }))
     }));
-    if (!window.confirm(`Import ${cleaned.length} sessions? This will replace the current data on this device.`)) return;
-    setSessions(cleaned);
+    if (!window.confirm(`Import ${cleaned.length} sessions? This will replace the current data on both devices using this cloud.`)) return;
+    await replaceCloudWith(cleaned);
     const importedDate = Array.isArray(payload) ? null : payload?.selectedDate;
     setSelectedDate(importedDate || todayStr());
     setTab("history");
@@ -1260,6 +1394,9 @@ function App() {
         <p style={C.logo}>LIFT<span style={{ fontStyle:"italic", color }}>co</span></p>
         <div style={C.profRow}>
           {["Patrick","Georgia"].map(p => <button key={p} style={C.profBtn(profile===p, COLORS[p])} onClick={()=>setProfile(p)}>{p}</button>)}
+        </div>
+        <div style={{ marginTop: 8, fontSize: 11, color: cloudStatus === "Cloud on" ? "#6d8f72" : cloudStatus === "Cloud error" ? "#c86b6b" : "#aaa" }}>
+          {cloudStatus}
         </div>
       </div>
       {tab==="log"      && <LogPage      key={`log-${profile}`}  profile={profile} color={color} sessions={sessions} onSave={saveSession} selectedDate={selectedDate} onSelectDate={setSelectedDate} />}
@@ -1280,18 +1417,5 @@ function App() {
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
-  <!-- Your other HTML content (like div for progressList, input, button) -->
-
-<!-- Firebase SDKs - These should go BEFORE your custom script -->
-<!-- For single-file HTML, use the "compat" libraries -->
-<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
-<!-- If you also want Analytics, include this one too -->
-<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-analytics-compat.js"></script>
-
-
-<script>
-
-
 </body>
 </html>
