@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="LIFTco" />
+  <meta name="theme-color" content="#ffffff" />
+  <title>LIFTco</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { background: #f7f6f3; overscroll-behavior: none; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    ::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+
+const fontLink = document.createElement("link");
+fontLink.rel = "stylesheet";
+fontLink.href = "https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Serif+Display:ital@0;1&display=swap";
+document.head.appendChild(fontLink);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXERCISE LIBRARY
+// ─────────────────────────────────────────────────────────────────────────────
+const EX = {
+  // GLUTES
+  gluteBridge:     { name: "Glute Bridge", cues: ["Feet hip-width, heels close to bum", "Drive through heels, squeeze glutes hard at top", "Hold 2 sec — Pilates style", "Ribs down — don't arch lower back", "Lower with control"], mechanics: "Glute max activation without spinal compression.", result: "Lifts and rounds the glute. The base of a strong posterior chain." },
+  cableKickback:   { name: "Cable Kickback", cues: ["Slight forward lean, hold machine for balance", "Drive leg back and up from the glute — not hamstring", "No swinging — zero momentum", "Squeeze at top, hold 1 sec", "Control the return"], mechanics: "Isolated glute max through full hip extension.", result: "Shapes and lifts the glute without loading quads." },
+  bandedClamshell: { name: "Banded Clamshell", cues: ["Lie on side, feet together, band above knees", "Rotate top knee up from the hip — not the waist", "Pelvis completely still throughout", "Slow and controlled — feel the side glute"], mechanics: "Glute medius isolation.", result: "Shapes the outer hip and stabilises the pelvis for everything else." },
+  sumoSquat:       { name: "Sumo Squat", cues: ["Wide stance, toes out 45°", "Push knees out over toes", "Chest tall throughout", "Lower to parallel, drive through whole foot"], mechanics: "Wide stance loads inner thigh and glute.", result: "Tones inner thighs and glutes with less quad bulk risk than regular squats." },
+
+  // POSTERIOR CHAIN
+  rdl:             { name: "Romanian Deadlift", cues: ["Push hips back — closing a door with your bum", "Weights stay close to legs all the way down", "Feel hamstring stretch before returning", "Flat back — don't round upper back", "Shoulders packed down, not shrugging"], mechanics: "Hip hinge loading hamstrings and glutes.", result: "Builds long, lean hamstrings and strong glutes. Best exercise for the back of the body." },
+  splitRDL:        { name: "Split Stance RDL", cues: ["Back foot just for balance — 90% weight through front leg", "Hinge at front hip", "Keep hips square — don't rotate open", "Use heavier dumbbells or bar when ready"], mechanics: "Unilateral hip hinge with balance demand.", result: "Fixes imbalances and builds single-leg posterior chain strength." },
+  legCurl:         { name: "Leg Curl (Machine)", cues: ["Full range every rep", "Squeeze at top — hold 1 sec", "Control the return — don't let it snap", "Hips stay on pad throughout"], mechanics: "Isolated hamstring in shortened range.", result: "Complements RDLs for fully developed hamstrings — length and definition." },
+  romanChair:      { name: "Roman Chair Back Extension", cues: ["Hips on pad, feet hooked in — body hinges at hip", "Cross arms on chest or hold plate for added load", "Lower until spine neutral — don't drop lower", "Drive up squeezing glutes AND back together", "Stop at parallel — don't hyperextend at top"], mechanics: "Spinal erectors and glutes through hip extension.", result: "Builds a thick, strong lower back and glutes. Best thing Pat can do for his golf back." },
+  goodMorning:     { name: "Good Morning", cues: ["Bar high on traps — not neck", "Soft bend in knees throughout", "Push hips back, maintain neutral spine", "Feel hamstrings load before returning"], mechanics: "Long lever hip hinge.", result: "Builds back resilience and hamstring strength — great for golf and longevity." },
+  singleLegRDL:    { name: "Single Leg RDL", cues: ["Push hips back — don't just lean forward", "Keep hips square — hardest part", "Soft bend in standing leg", "Dumbbell in opposite hand to working leg"], mechanics: "Fully unilateral hip hinge.", result: "Builds strong posterior chain and fixes left-right imbalances. Great for posture." },
+
+  // LEGS
+  bulgSplitSquat:  { name: "Bulgarian Split Squat", cues: ["Front foot far enough — shin vertical at bottom", "3 sec lowering", "Torso upright throughout", "Drive through front heel to stand", "Moderate weight, 12–15 reps"], mechanics: "Unilateral squat — high glute and quad demand.", result: "One of the best leg shapers. Builds strength without spinal load." },
+  reverseLunge:    { name: "Reverse Lunge", cues: ["Step back — front heel stays planted", "Front knee tracks over second toe", "Keep torso tall", "Drive through front heel to return"], mechanics: "Posterior-dominant lunge — more glute, less quad.", result: "Shapes glute and thigh without knee stress or quad bulk." },
+  stepUp:          { name: "Step Up", cues: ["Whole foot on box", "Drive through heel of raised leg — it does all the work", "Don't push off the back foot", "Stand tall at top before stepping down"], mechanics: "Single-leg press from a step.", result: "Builds glute and quad strength with great real-world carry-over." },
+  gobletSquat:     { name: "Goblet Squat", cues: ["Hold dumbbell at chest", "Sit between knees — elbows inside thighs", "Drive knees out, chest tall", "Heels stay on floor"], mechanics: "Front-loaded squat with upright torso.", result: "Full lower body strength with posture built in." },
+  barbellSquat:    { name: "Barbell Squat", cues: ["Bar on traps — not neck", "Sit back and down — chest stays up", "Knees out over toes", "Drive through floor", "Start bar only, add weight gradually"], mechanics: "Bilateral squat — highest lower body loading.", result: "The foundational lower body strength builder." },
+  kneelSquat:      { name: "Kneeling Squat", cues: ["Kneel hip-width on pad", "Drive hips forward to stand tall", "Squeeze glutes at top", "Add dumbbell or do shoulder press at top to progress"], mechanics: "Hip flexor stretch combined with glute activation.", result: "Improves hip posture and glute activation — great postural carry-over." },
+  sitToStand:      { name: "Sit to Stand", cues: ["Arms straight out front, palms facing in", "Band around hands — push out against band as you stand", "Drive through heels to stand tall", "Progress: bodyweight → banded → weighted 10–15kg"], mechanics: "Fundamental squat pattern from seated.", result: "The most functional leg exercise. Builds the squat pattern safely from the ground up." },
+  legPress:        { name: "Leg Press", cues: ["Feet hip-width, mid-platform", "Lower to 90° — don't let back peel off pad", "Drive through whole foot", "Full range — don't cut it short"], mechanics: "Bilateral press with full spinal support.", result: "Heavy lower body loading without back fatigue." },
+  calfSeated:      { name: "Calf Raise — Seated", cues: ["5–10kg on lower thighs", "Heels all the way down then up onto toes — full range", "2 sec up, 2 sec down — no bouncing", "Feel the stretch at the bottom"], mechanics: "Isolated soleus loading.", result: "Develops lower leg definition and ankle stability." },
+  calfStanding:    { name: "Calf Raise — Standing", cues: ["Stand on edge of step for full range", "Both legs or single leg", "Control the lowering — don't drop", "Hold dumbbell for extra load"], mechanics: "Gastrocnemius through full range.", result: "Builds lower leg definition and strength." },
+  lateralLunge:    { name: "Lateral Lunge", cues: ["Step wide, sit into that hip", "Straight leg stays extended, toes forward", "Chest tall, weight in bent heel", "Drive back through bent leg"], mechanics: "Frontal plane — inner thigh and glute medius.", result: "Targets inner thigh and outer hip — a gap most programs miss." },
+
+  // CHEST & PUSH
+  chestPress:      { name: "Chest Press", cues: ["Lower to chest — full range every rep", "Press up and slightly in at top", "Shoulder blades set back and down before you lift", "3 sec lowering", "Increase weight when 12 reps feels easy"], mechanics: "Horizontal push — pec major and anterior delt.", result: "Develops the chest for a fuller, defined upper body." },
+  pushUp:          { name: "Push Up", cues: ["Body one straight line — no sagging hips", "Lower chest to floor — full range", "Push floor away — spread the ground", "Shoulders packed down — don't shrug into neck", "Modify: hands on bench. Progress: feet elevated or weighted"], mechanics: "Bodyweight horizontal press with core integration.", result: "Builds chest, shoulder and tricep simultaneously while training core stability." },
+  inclinePress:    { name: "Incline Dumbbell Press", cues: ["30–45° incline only — not too steep", "Lower to upper chest — full range", "Pack shoulders away from ears before pressing", "Control the descent — 3 sec down"], mechanics: "Inclined press — upper pec and anterior delt.", result: "Builds upper chest fullness for a defined collarbone-to-chest line." },
+  benchPress:      { name: "Barbell Bench Press", cues: ["Feet flat, small arch in lower back", "Lower bar to lower chest — full range", "Shoulder blades pinched into bench throughout", "Drive bar up and slightly back", "Spotter or use safety arms"], mechanics: "Bilateral horizontal press — highest chest loading.", result: "The foundational chest strength and mass builder." },
+  cableFly:        { name: "Cable Chest Fly", cues: ["Slight forward lean", "Soft elbow bend — constant throughout", "Squeeze at centre — hug a tree", "Slow on the return — resist it"], mechanics: "Chest isolation with constant cable tension.", result: "Shapes and defines the chest — the toning movement for the pec." },
+  ohpSingleArm:    { name: "Overhead Press — Single Arm (Light)", cues: ["Maintain pelvic tilt — ribs don't flare up", "Exhale to press, inhale to lower", "Core braced — resist side bend", "2kg to start — this is postural control not strength"], mechanics: "Unilateral overhead press demanding rib position and core stability.", result: "Improves shoulder stability and posture. Trains the body to stay tall under load." },
+  ohp:             { name: "Overhead Press", cues: ["Brace core and ribs down before pressing", "Press straight up — not forward", "Lower to ear height each rep", "Don't shrug — shoulders away from ears throughout"], mechanics: "Bilateral overhead pressing — all three delt heads and tricep.", result: "Builds strong, defined shoulders — cornerstone of an athletic upper body." },
+
+  // BACK & PULL
+  seatedRow:       { name: "Seated Cable Row", cues: ["Sit tall throughout — don't collapse between reps", "Pull to lower chest — drive elbows back past ribs", "Shoulders DOWN before every single rep", "Squeeze both shoulder blades together at end position", "Chest stays up on the return — don't round forward"], mechanics: "Horizontal cable pull — mid back, rhomboids, lats.", result: "Mid-back strength that directly counters rounded shoulders. Visible posture change over weeks." },
+  standingCableRow:{ name: "Standing Cable Row (Lean Forward)", cues: ["Slight forward hinge — not upright", "Rope or ball attachment, pull toward lower chest", "Drive elbows back past ribs", "Squeeze shoulder blades hard at end — hold 1 sec", "Upper traps stay relaxed — this is mid and lower trap"], mechanics: "Horizontal pull from a hinged position — loads mid and lower traps differently to seated.", result: "Builds the mid-back thickness that creates a strong, defined back silhouette." },
+  trxPullUp:       { name: "TRX / Assisted Pull Up", cues: ["Full hang at bottom — get the full stretch", "Drive elbows down and back to pull up", "Chin over bar or hands at top", "Control the descent — don't drop", "Pack shoulders down before initiating the pull"], mechanics: "Vertical pull — lats, biceps, rear delts.", result: "The most important upper body posture exercise. Builds the lats that pull everything into alignment." },
+  latPulldown:     { name: "Lat Pulldown", cues: ["Slight lean back, pull to upper chest", "Lead with elbows — elbows to back pockets", "Shoulders DOWN before pulling — not shrugging at top", "Full stretch at top on the return"], mechanics: "Vertical pull — lat dominant.", result: "Wider back, better posture — foundation of a strong upper body shape." },
+  cablePullover:   { name: "Cable Pull-Over (Straight Arm)", cues: ["Cable set high, rope or ball attachment", "Hinge slightly forward, soft bend in elbows", "Pull in an arc — think elbows to hips", "Squeeze lats and lower traps at bottom — hold 1 sec", "Upper traps completely out of it", "Control the return — feel the stretch at top"], mechanics: "Shoulder extension — lats and lower traps in a lengthened position.", result: "Strengthens the exact muscles that are weak in rounded shoulder and rib flare patterns." },
+  barbellRow:      { name: "Barbell Row", cues: ["Hinge to roughly 45°", "Pull bar to lower chest — drive elbows back past ribs", "Shoulder blades squeeze hard at top — hold 1 sec", "Control the lowering — don't drop it", "Shoulders packed, not shrugging"], mechanics: "Heavy horizontal barbell pull — upper back, lats, rear delts.", result: "The biggest back mass builder. This is what makes Pat look strong from behind." },
+  dbRow:           { name: "Dumbbell Row", cues: ["Knee and hand on bench for support", "Drive elbow back and up past ribs", "Full stretch at bottom, full squeeze at top", "Shoulders DOWN — don't shrug into the pull", "Increase weight when 10 reps feels easy"], mechanics: "Unilateral horizontal pull — mid/upper trap, lats.", result: "Builds upper back thickness and pulls shoulders into correct alignment." },
+  inclineRow:      { name: "Incline Dumbbell Row", cues: ["Chest fully against incline pad", "Lead with elbow — not the wrist", "Full stretch at bottom, full squeeze at top", "Shoulders packed throughout — no shrugging"], mechanics: "Supported horizontal pull — no momentum possible.", result: "Develops upper back without cheating — directly improves shoulder position." },
+  facePull:        { name: "Face Pull", cues: ["Rope at face height", "Pull to face — thumbs end up behind ears", "Elbows high and wide at the end", "Don't jut head forward to meet the rope", "Upper traps relaxed throughout"], mechanics: "External rotation + rear delt — rotator cuff health.", result: "Keeps shoulders healthy long term. Essential for anyone doing heavy pressing." },
+
+  // SHOULDERS
+  latRaise:        { name: "Lateral Raise", cues: ["Slight forward lean, thumbs slightly down", "Lead with elbows — not hands", "Stop at shoulder height — no higher", "Upper traps stay DOWN throughout", "Light to moderate weight, full control"], mechanics: "Medial deltoid isolation.", result: "Builds the shoulder cap — key to that strong, defined shoulder silhouette." },
+  cableLatRaise:   { name: "Cable Lateral Raise", cues: ["Cable at ankle height, pull across body and up", "Lead with elbow throughout", "Upper traps completely relaxed — don't shrug into it", "Slow on the way down — resist the cable"], mechanics: "Medial delt with constant cable tension.", result: "More precise shoulder shaping than dumbbells — cable keeps tension where it matters." },
+  rearDeltFly:     { name: "Rear Delt Fly", cues: ["Slight forward lean or chest on incline pad", "Lead with elbows — arms stay slightly bent", "Squeeze rear delts at end — show your armpits", "Light weight, very high control", "Upper traps relaxed — don't shrug"], mechanics: "Posterior deltoid isolation.", result: "The muscle that pulls shoulders back. Consistent work here visibly changes resting shoulder position." },
+  reversePecDeck:  { name: "Reverse Pec Deck", cues: ["Chest against pad", "Drive elbows back — lead with elbows not hands", "Squeeze rear delts at end range", "Upper traps down — don't shrug into it"], mechanics: "Posterior delt isolation on machine.", result: "Builds rear shoulder — creates 3D rounded shoulder look from behind." },
+  arnoldPress:     { name: "Arnold Press", cues: ["Start palms facing you, rotate as you press up", "Ribs down throughout — watch for flare", "Lower slowly — 3 sec down", "Shoulders packed before each rep"], mechanics: "Rotational press hitting all three delt heads.", result: "Full shoulder development from every angle." },
+  bandPullApart:   { name: "Band Pull-Apart", cues: ["Arms straight at chest height, band taut", "Pull band apart squeezing shoulder blades together", "Control the return — don't let it snap", "Upper traps stay relaxed and low"], mechanics: "Scapular retraction + posterior delt activation.", result: "Reinforces good posture. Easy to superset between any sets." },
+
+  // ARMS
+  bicepCurl:       { name: "Bicep Curl", cues: ["Elbows pinned to sides — no swinging", "Full range — all the way down every rep", "Supinate (rotate palms up) at the top", "Shoulders stay down and back", "Increase weight when 12 reps feels easy"], mechanics: "Elbow flexion — bicep brachii.", result: "Builds defined, visible bicep. The front of the arm." },
+  cableCurl:       { name: "Cable Bicep Curl", cues: ["Elbows pinned — don't let them drift forward", "Full range — all the way down to keep tension", "Squeeze hard at top for 1–2 sec", "Constant tension the whole movement"], mechanics: "Constant cable tension through full range.", result: "Better than dumbbells for definition — keeps tension where dumbbells go slack." },
+  inclineCurl:     { name: "Incline Dumbbell Curl", cues: ["Arms hang fully straight at bottom — full stretch", "Curl up with control — don't swing forward", "The stretched position at bottom is the whole point", "Shoulders back against pad throughout"], mechanics: "Loaded bicep stretch — recruits maximum fibres.", result: "Best exercise for visible bicep peak. The loaded stretch creates the most change." },
+  hammerCurl:      { name: "Hammer Curl", cues: ["Neutral grip — thumbs pointing up throughout", "Elbows stay pinned to sides", "Full range of motion", "Alternate arms or both together"], mechanics: "Brachialis and brachioradialis — the muscle under the bicep.", result: "Makes arms look thicker and more defined from the side." },
+  tricepExt:       { name: "Tricep Extension", cues: ["Elbows stay pinned — don't flare out", "Full range — all the way up and all the way down", "3 sec lowering — resist gravity", "Cable, dumbbell or band all work"], mechanics: "Elbow extension — tricep brachii.", result: "Defines the back of the arm — the largest part of the upper arm." },
+  tricepPushdown:  { name: "Cable Tricep Pushdown (Rope)", cues: ["Elbows tight to body — they don't move", "Pull rope apart slightly at the bottom — this is key", "Full extension — squeeze hard for 1 sec", "Control the return — don't let it snap up"], mechanics: "Tricep isolation with rope allowing full extension.", result: "Most effective tricep shaper. The rope split at the bottom hits the whole tricep." },
+  ohTricep:        { name: "Overhead Tricep Extension", cues: ["Elbows pinned — don't let them flare", "Full range — the stretch at the bottom is the point", "Keep ribs down — don't arch back to reach overhead", "Slow lowering — 3 sec down"], mechanics: "Long head tricep in a stretched position.", result: "Targets the largest part of the tricep — creates full, defined arm look from behind." },
+  tricepKickback:  { name: "Tricep Kickback", cues: ["Hinge forward, upper arm parallel to floor and stays there", "Extend forearm until arm fully straight", "Squeeze at full extension — hold 1 sec", "15–20 reps, light weight — it's a finisher"], mechanics: "Tricep isolation at end range.", result: "Shapes the lower tricep for a defined arm in every position. Great session finisher." },
+  closeGripBench:  { name: "Close Grip Bench Press", cues: ["Hands shoulder-width — not ultra narrow", "Lower to lower chest with control", "Elbows stay tucked to sides throughout", "Full range every rep"], mechanics: "Tricep compound strength.", result: "Adds real strength and size to the back of the arm." },
+
+  // CORE — shared
+  sidePlank:       { name: "Side Plank", cues: ["Elbow directly under shoulder", "Hips stacked — don't let top hip drop", "Body in one straight line hip to heel", "Hold 20–40 sec each side — both sides every session", "Progress: raise top leg"], mechanics: "Lateral core stability — obliques and glute med.", result: "Builds the lateral core that protects the lower back and shapes the waist." },
+  kneePlank:       { name: "Knee / Frog Plank", cues: ["On all fours — knees directly under hips", "Push floor away — round upper back slightly", "Hold position — breathe steadily", "Frog variation: feet wide, inner thighs engaged"], mechanics: "Deep core and hip stability from a low-load position.", result: "Builds foundational core control — great for lower back health and hip stability." },
+  reverseCrunch:   { name: "Reverse Crunch", cues: ["Lie on back, hands by sides or under lower back", "Bring knees to chest then press feet toward ceiling", "Lower back stays pressed into floor throughout", "Control the lowering — don't drop legs", "Exhale on the way up"], mechanics: "Lower abdominal and hip flexor activation.", result: "Strengthens the lower abs and improves pelvic control." },
+  fourPointHover:  { name: "4 Point Hover", cues: ["On all fours — hands under shoulders, knees under hips", "Lift knees 2–3cm off the floor — just hovering", "Hold completely still — breathe steadily", "Keep back completely flat — don't sag or arch", "Build from 10 sec to 30+ sec"], mechanics: "Deep stabiliser activation — transverse abdominis and multifidus.", result: "Activates the deepest core muscles — the foundation of all back health and stability." },
+  // Core — Pat extra
+  abWheel:         { name: "Ab Wheel Rollout", cues: ["Kneel on mat, hands on wheel", "Brace and exhale hard before rolling out", "Only go as far as your lower back stays completely flat", "Pull back using lats — not just arms", "Build range very slowly over weeks — don't rush this"], mechanics: "Dynamic anti-extension — highest core challenge.", result: "Best core exercise for back resilience. Builds the strength that protects Pat's lower back on the golf course." },
+  // Core — Georgia
+  deadBug:         { name: "Dead Bug", cues: ["Lower back pressed into floor — it stays there the whole set", "Exhale fully before moving any limb", "Move slowly — 5 seconds per rep", "Only go as far as back stays completely flat"], mechanics: "Anterior core stability — rib-to-pelvis connection.", result: "Flattens the stomach, corrects rib flare, builds the deep core that supports everything." },
+  hollowBody:      { name: "Hollow Body Hold", cues: ["Lower back pressed firmly into floor", "Ribs down — must not flare up to the ceiling", "Arms by sides first, progress to overhead", "Hold 20–30 sec — breathe steadily, don't hold breath"], mechanics: "Full anterior chain engagement.", result: "Directly trains the rib-down position — the physical fix for the B-shape pattern." },
+  pallofPress:     { name: "Pallof Press", cues: ["Stand side-on to cable, feet hip-width", "Exhale and brace core before pressing out", "Ribs stay down — watch for flare as arms extend", "Hold 3 sec at full extension — that's where the work is"], mechanics: "Anti-rotation core stability against cable resistance.", result: "Builds the core strength that actually matters — resisting movement, not just creating it." },
+
+  // NECK & THORACIC
+  chinTuck:        { name: "Chin Tuck", cues: ["Stand or sit tall against wall", "Draw chin straight back — like making a double chin", "Don't nod down — movement is horizontal only", "Hold 5–10 sec, 10–15 reps. Do this daily."], mechanics: "Deep cervical flexor activation.", result: "Pulls the head back over the shoulders. The single most important neck exercise. Daily." },
+  upperTrapStretch:{ name: "Upper Trap Stretch", cues: ["Sit tall, one hand grips under the chair", "Tilt opposite ear toward opposite shoulder", "Gentle pressure with free hand on top of head", "Hold 30–45 sec each side — breathe into it", "These are TIGHT and overactive — stretch only, never load"], mechanics: "Lengthens chronically shortened upper trapezius.", result: "Releases the tension pulling your neck and shoulders up and forward. Do every session." },
+  thoracicRoller:  { name: "Thoracic Foam Roller", cues: ["Roller at mid-back — not lower back", "Support head with hands behind neck", "Let upper back extend over roller — gravity does the work", "Breathe into the extension — don't force it", "Spend 60 sec at each vertebral level"], mechanics: "Passive thoracic extension mobilisation.", result: "Addresses the stiffness driving rib flare and forward head. 2 minutes before every session." },
+  threadNeedle:    { name: "Thread the Needle", cues: ["On all fours, one hand behind head", "Rotate that elbow up toward the ceiling", "Follow with your eyes — let your chest open", "Hold 3 sec at the top, breathe into it"], mechanics: "Segmental thoracic rotation mobilisation.", result: "Unlocks the rotational stiffness that makes every upper body exercise more effective." },
+  serratusSlide:   { name: "Serratus Wall Slide", cues: ["Forearms on wall, elbows at shoulder height", "Push into wall and slide arms up overhead", "Feel shoulder blades spreading apart at the top", "Ribs down — watch for flare as arms go overhead"], mechanics: "Serratus anterior strengthening.", result: "Strengthens the muscle that holds ribs against the chest wall — direct fix for rib flare." },
+  breathing9090:   { name: "90/90 Breathing", cues: ["Lie on back, hips and knees at 90°", "Breathe wide into the ribcage — 360° expansion", "On exhale: feel ribs drop down and abs engage gently", "5–8 slow deliberate breaths"], mechanics: "Diaphragmatic breathing with rib position correction.", result: "Resets breathing mechanics and rib position. Root-level fix for rib flare." },
+  wallAngels:      { name: "Wall Angels", cues: ["Back against wall — head, upper back and bum all touching", "Arms form W shape against the wall", "Slide arms up to Y — keep everything touching the wall", "Brace abs if lower back gaps from wall"], mechanics: "Thoracic extension + scapular upward rotation.", result: "Reveals exactly where you're stiff and trains it — gets easier as posture improves." }
+};
+
+// Exercises that log time (seconds) not reps + weight
+const TIME_BASED = new Set([
+  "sidePlank", "kneePlank", "fourPointHover", "plank", "hollowBody",
+  "deadBug", "pallofPress", "breathing9090", "thoracicRoller",
+  "chinTuck", "threadNeedle", "upperTrapStretch", "wallAngels", "serratusSlide",
+]);
+
+// Exercises that log reps only (no weight)
+const REPS_ONLY = new Set([
+  "pushUp", "reverseCrunch", "bandPullApart",
+  "deepNeckNod", "kneelSquat", "sitToStand", "gluteBridge",
+  "bandedClamshell", "abWheel",
+]);
+
+function logType(exKey) {
+  if (TIME_BASED.has(exKey)) return "time";
+  if (REPS_ONLY.has(exKey)) return "reps";
+  return "weighted";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SESSION PROGRAMS
+// type: "all" = do all exercises | "pick" = choose N from the list
+// ─────────────────────────────────────────────────────────────────────────────
+const SESSIONS = {
+  Georgia: [
+    {
+      id: "g-push", label: "Day 1 · Push",
+      description: "Glutes, chest, shoulders, triceps, legs",
+      targetCount: "~8 exercises · aim for 60 min",
+      groups: [
+        { label: "Glute activation — pick 1", type: "pick", pick: 1, exercises: ["gluteBridge", "bandedClamshell", "cableKickback"] },
+        { label: "Chest — pick 1", type: "pick", pick: 1, exercises: ["chestPress", "pushUp", "inclinePress", "cableFly"] },
+        { label: "Shoulders — pick 1 or both", type: "pick", pick: 2, exercises: ["latRaise", "ohpSingleArm"] },
+        { label: "Triceps — pick 1", type: "pick", pick: 1, exercises: ["tricepExt", "tricepPushdown", "ohTricep"] },
+        { label: "Legs — pick 1 or 2", type: "pick", pick: 2, exercises: ["kneelSquat", "sitToStand", "gobletSquat", "barbellSquat"] },
+        { label: "Calf raises — pick 1 or both", type: "pick", pick: 2, exercises: ["calfSeated", "calfStanding"] },
+        { label: "Posture (superset between sets) — pick 1", type: "pick", pick: 1, exercises: ["bandPullApart", "wallAngels", "chinTuck"] },
+      ],
+    },
+    {
+      id: "g-pull", label: "Day 2 · Pull",
+      description: "Back, hamstrings, biceps, lat raises, rear delts",
+      targetCount: "~8 exercises · aim for 60 min",
+      groups: [
+        { label: "Rows — pick 1 or both", type: "pick", pick: 2, exercises: ["seatedRow", "cablePullover"] },
+        { label: "Pull up — pick 1", type: "pick", pick: 1, exercises: ["trxPullUp", "latPulldown"] },
+        { label: "Hamstrings — pick 1", type: "pick", pick: 1, exercises: ["rdl", "splitRDL", "legCurl"] },
+        { label: "Bicep curls — pick 1", type: "pick", pick: 1, exercises: ["bicepCurl", "cableCurl", "inclineCurl"] },
+        { label: "Shoulders — pick 1 or both", type: "pick", pick: 2, exercises: ["latRaise", "rearDeltFly"] },
+        { label: "Core (superset between sets) — pick 1", type: "pick", pick: 1, exercises: ["sidePlank", "kneePlank", "reverseCrunch", "fourPointHover"] },
+      ],
+    },
+    {
+      id: "g-posture", label: "Day 3 · Posture & Aesthetics",
+      description: "Glutes, single-leg, upper back, arms, neck, core",
+      targetCount: "6–9 exercises · 60–90 min",
+      groups: [
+        { label: "Glutes — pick 1", type: "pick", pick: 1, exercises: ["gluteBridge", "sumoSquat", "cableKickback", "bandedClamshell"] },
+        { label: "Single-leg strength — pick 1 or 2", type: "pick", pick: 2, exercises: ["bulgSplitSquat", "reverseLunge", "stepUp", "lateralLunge", "singleLegRDL"] },
+        { label: "Upper back — pick 1", type: "pick", pick: 1, exercises: ["cablePullover", "inclineRow", "seatedRow"] },
+        { label: "Rear delts — pick 1 or both", type: "pick", pick: 2, exercises: ["rearDeltFly", "bandPullApart"] },
+        { label: "Arms — pick 1 or both", type: "pick", pick: 2, exercises: ["cableCurl", "ohTricep"] },
+        { label: "Neck & thoracic — pick 1 or 2", type: "pick", pick: 2, exercises: ["chinTuck", "thoracicRoller", "threadNeedle", "upperTrapStretch", "serratusSlide", "breathing9090"] },
+        { label: "Core — pick 1 or more", type: "pick", pick: 2, exercises: ["sidePlank", "kneePlank", "reverseCrunch", "fourPointHover"] },
+      ],
+    },
+  ],
+  Patrick: [
+    {
+      id: "p-a", label: "Session A · Push + Legs",
+      description: "Chest, shoulders, triceps, legs, core",
+      targetCount: "6–8 exercises · aim for 60 min",
+      groups: [
+        { label: "Chest — pick 1", type: "pick", pick: 1, exercises: ["benchPress", "chestPress", "inclinePress", "pushUp"] },
+        { label: "Shoulders — pick 1 or 2", type: "pick", pick: 2, exercises: ["ohp", "arnoldPress", "latRaise", "facePull"] },
+        { label: "Triceps — pick 1", type: "pick", pick: 1, exercises: ["tricepPushdown", "closeGripBench", "ohTricep", "tricepExt"] },
+        { label: "Legs — pick 1 or 2", type: "pick", pick: 2, exercises: ["barbellSquat", "legPress", "bulgSplitSquat", "gobletSquat", "reverseLunge"] },
+        { label: "Posterior chain — pick 1", type: "pick", pick: 1, exercises: ["rdl", "gluteBridge", "goodMorning"] },
+        { label: "Core — pick any", type: "pick", pick: 4, exercises: ["sidePlank", "kneePlank", "reverseCrunch", "fourPointHover"] },
+      ],
+    },
+    {
+      id: "p-b", label: "Session B · Pull + Back",
+      description: "Back, rows, pull ups, biceps, hamstrings",
+      targetCount: "6–8 exercises · aim for 60 min",
+      groups: [
+        { label: "Roman chair", type: "pick", pick: 1, exercises: ["romanChair"] },
+        { label: "Vertical pull — pick 1", type: "pick", pick: 1, exercises: ["latPulldown", "trxPullUp"] },
+        { label: "Rows — pick 1 or 2", type: "pick", pick: 2, exercises: ["barbellRow", "seatedRow", "dbRow", "inclineRow", "cablePullover"] },
+        { label: "Rear delts + upper back — pick 1 or both", type: "pick", pick: 2, exercises: ["facePull", "rearDeltFly"] },
+        { label: "Biceps — pick 1", type: "pick", pick: 1, exercises: ["bicepCurl", "hammerCurl", "inclineCurl", "cableCurl"] },
+        { label: "Hamstrings — pick 1", type: "pick", pick: 1, exercises: ["rdl", "legCurl", "singleLegRDL", "goodMorning"] },
+        { label: "Core — pick any", type: "pick", pick: 5, exercises: ["sidePlank", "kneePlank", "reverseCrunch", "fourPointHover", "abWheel"] },
+      ],
+    },
+  ],
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+const storage = {
+  get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const todayStr = () => new Date().toISOString().split("T")[0];
+const fmtDate = (d) => new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const COLORS = { Patrick: "#3a6186", Georgia: "#7a5c6e" };
+const FEEL_LABELS = ["", "Low", "Okay", "Good", "Great", "Strongest 💪"];
+const DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function getStreak(sessions) {
+  if (!sessions.length) return 0;
+  const dates = [...new Set(sessions.map(s => s.date))].sort().reverse();
+  let streak = 0; let cur = new Date(); cur.setHours(0,0,0,0);
+  for (const d of dates) {
+    const dd = new Date(d + "T00:00:00");
+    if (Math.round((cur - dd) / 86400000) <= 1) { streak++; cur = dd; } else break;
+  }
+  return streak;
+}
+
+function getLastWeight(sessions, profile, exName) {
+  const mine = [...sessions.filter(s => s.profile === profile)].reverse();
+  for (const s of mine) {
+    const ex = s.exercises?.find(e => e.name === exName);
+    if (ex?.sets?.some(s => s.weight)) {
+      const maxW = Math.max(...ex.sets.map(s => parseFloat(s.weight) || 0));
+      return { weight: maxW, date: s.date };
+    }
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STYLES
+// ─────────────────────────────────────────────────────────────────────────────
+const C = {
+  app:        { fontFamily: "'DM Sans', sans-serif", background: "#f7f6f3", minHeight: "100vh", color: "#1c1c1c", maxWidth: 440, margin: "0 auto", paddingBottom: 80 },
+  header:     { background: "#fff", borderBottom: "1px solid #ebe8e3", padding: "14px 18px 12px", position: "sticky", top: 0, zIndex: 50 },
+  logo:       { fontFamily: "'DM Serif Display', serif", fontSize: 21, fontWeight: 400, letterSpacing: "-0.02em", margin: 0, lineHeight: 1 },
+  profRow:    { display: "flex", gap: 8, marginTop: 11 },
+  profBtn:    (a, color) => ({ flex: 1, padding: "9px 0", borderRadius: 10, border: `1.5px solid ${a ? color : "#e0dcd6"}`, background: a ? color : "#faf9f7", color: a ? "#fff" : "#999", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: a ? 600 : 400, cursor: "pointer", transition: "all 0.18s" }),
+  page:       { padding: "16px 14px 28px" },
+  card:       { background: "#fff", borderRadius: 14, padding: "14px", marginBottom: 10, border: "1px solid #ebe8e3" },
+  label:      { fontSize: 10, fontWeight: 700, color: "#b0aba4", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6, display: "block" },
+  h1:         { fontFamily: "'DM Serif Display', serif", fontSize: 21, fontWeight: 400, margin: "0 0 3px", letterSpacing: "-0.01em" },
+  sub:        { fontSize: 12, color: "#aaa", marginBottom: 14 },
+  btn:        (color="#1c1c1c", ghost=false) => ({ background: ghost ? "transparent" : color, color: ghost ? color : "#fff", border: `1.5px solid ${color}`, borderRadius: 10, padding: "10px 16px", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 500, cursor: "pointer", transition: "all 0.15s", lineHeight: 1.2 }),
+  input:      { width: "100%", padding: "9px 11px", border: "1.5px solid #e0dcd6", borderRadius: 9, fontFamily: "'DM Sans',sans-serif", fontSize: 14, background: "#faf9f7", boxSizing: "border-box", outline: "none", color: "#1c1c1c" },
+  nav:        { display: "flex", background: "#fff", borderTop: "1px solid #ebe8e3", position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 440, zIndex: 50 },
+  navBtn:     (a) => ({ flex: 1, padding: "11px 0 9px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: a ? "#1c1c1c" : "#ccc", fontFamily: "'DM Sans',sans-serif", fontSize: 10, fontWeight: a ? 600 : 400, transition: "color 0.15s" }),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEEK STRIP
+// ─────────────────────────────────────────────────────────────────────────────
+function WeekStrip({ sessions, profile, color }) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const mon = new Date(today); mon.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mon); d.setDate(mon.getDate() + i);
+    const str = d.toISOString().split("T")[0];
+    return { label: DAYS_SHORT[i], str, worked: sessions.some(s => s.profile === profile && s.date === str), isToday: str === todayStr() };
+  });
+  return (
+    <div style={{ ...C.card, padding: "11px 13px", marginBottom: 14 }}>
+      <span style={C.label}>This week</span>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        {days.map(d => (
+          <div key={d.str} style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: d.isToday ? color : "#bbb", fontWeight: d.isToday ? 700 : 400, marginBottom: 4 }}>{d.label}</div>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: d.worked ? color : d.isToday ? color + "18" : "#f5f2ee", border: `2px solid ${d.isToday ? color : "transparent"}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", fontSize: 12, color: d.worked ? "#fff" : "transparent" }}>✓</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXERCISE CARD
+// ─────────────────────────────────────────────────────────────────────────────
+function ExCard({ exKey, color, selected, onToggle, lastWeight, isRequired }) {
+  const ex = EX[exKey];
+  const [open, setOpen] = useState(false);
+  if (!ex) return null;
+  return (
+    <div style={{ border: `1.5px solid ${selected ? color : "#ebe8e3"}`, borderRadius: 12, background: selected ? color + "08" : "#fff", marginBottom: 7, overflow: "hidden", transition: "all 0.15s" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "10px 12px" }}>
+        {isRequired ? (
+          <div style={{ width: 24, height: 24, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>✓</span>
+          </div>
+        ) : (
+          <div onClick={() => onToggle(exKey)} style={{ width: 24, height: 24, borderRadius: "50%", border: `2px solid ${selected ? color : "#d0ccc6"}`, background: selected ? color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.15s" }}>
+            {selected && <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>✓</span>}
+          </div>
+        )}
+        <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setOpen(o => !o)}>
+          <div style={{ fontWeight: 500, fontSize: 13, lineHeight: 1.3 }}>{ex.name}</div>
+          {lastWeight && <div style={{ fontSize: 11, color, marginTop: 1, fontWeight: 500 }}>Last: {lastWeight.weight}kg · {fmtDate(lastWeight.date)}</div>}
+        </div>
+        <div onClick={() => setOpen(o => !o)} style={{ fontSize: 11, color: "#bbb", cursor: "pointer", flexShrink: 0, padding: "0 2px" }}>{open ? "▲" : "▼"}</div>
+      </div>
+      {open && (
+        <div style={{ borderTop: "1px solid #f0ece7", padding: "10px 12px 12px" }}>
+          <div style={{ marginBottom: 8 }}>
+            {ex.cues.map((cue, i) => (
+              <div key={i} style={{ fontSize: 12, color: "#444", marginBottom: 4, paddingLeft: 13, position: "relative", lineHeight: 1.4 }}>
+                <span style={{ position: "absolute", left: 0, color, fontWeight: 700 }}>→</span>{cue}
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, borderLeft: `2px solid ${color}40`, paddingLeft: 9, lineHeight: 1.5 }}>
+            <div style={{ color: "#777" }}><span style={{ fontWeight: 600, color: "#555" }}>How it works: </span>{ex.mechanics}</div>
+            <div style={{ marginTop: 3, color: "#555" }}><span style={{ fontWeight: 600, color }}>Result: </span>{ex.result}</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GROUP CARD
+// ─────────────────────────────────────────────────────────────────────────────
+function GroupCard({ group, color, selected, onToggle, sessions, profile, warn }) {
+  const pickedCount = group.exercises.filter(k => selected.includes(k)).length;
+  const missing = warn && pickedCount === 0;
+
+  return (
+    <div style={{ ...C.card, borderColor: missing ? "#f0a0a0" : "#ebe8e3", marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 9 }}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>{group.label}</div>
+          <div style={{ fontSize: 11, color: "#aaa", marginTop: 1 }}>Pick at least 1</div>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: missing ? "#e74c3c" : pickedCount > 0 ? color : "#bbb" }}>
+          {missing ? "⚠ none picked" : pickedCount > 0 ? `${pickedCount} selected` : ""}
+        </div>
+      </div>
+      {group.exercises.map(k => (
+        <ExCard
+          key={k}
+          exKey={k}
+          color={color}
+          selected={selected.includes(k)}
+          onToggle={onToggle}
+          lastWeight={getLastWeight(sessions, profile, EX[k]?.name)}
+          isRequired={false}
+        />
+      ))}
+    </div>
+  );
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WORKOUT SUMMARY GENERATOR
+// ─────────────────────────────────────────────────────────────────────────────
+const MUSCLE_MAP = {
+  glutes:    ["gluteBridge","cableKickback","bandedClamshell","sumoSquat","kneelSquat","bulgSplitSquat","reverseLunge","stepUp","lateralLunge"],
+  posterior: ["rdl","splitRDL","singleLegRDL","legCurl","romanChair","goodMorning"],
+  back:      ["seatedRow","standingCableRow","trxPullUp","latPulldown","cablePullover","barbellRow","dbRow","inclineRow"],
+  chest:     ["chestPress","pushUp","inclinePress","benchPress","cableFly"],
+  shoulders: ["latRaise","cableLatRaise","rearDeltFly","facePull","reversePecDeck","arnoldPress","bandPullApart","ohp","ohpSingleArm"],
+  arms:      ["bicepCurl","cableCurl","inclineCurl","hammerCurl","tricepExt","tricepPushdown","ohTricep","tricepKickback","closeGripBench"],
+  legs:      ["barbellSquat","gobletSquat","legPress","sitToStand","calfSeated","calfStanding"],
+  core:      ["sidePlank","kneePlank","reverseCrunch","fourPointHover","abWheel","deadBug","hollowBody","pallofPress"],
+  posture:   ["chinTuck","upperTrapStretch","thoracicRoller","threadNeedle","serratusSlide","breathing9090","wallAngels"],
+};
+
+function getWorkoutSummary(selectedKeys, sessionLabel, profile) {
+  const hit = new Set();
+  for (const [muscle, keys] of Object.entries(MUSCLE_MAP)) {
+    if (selectedKeys.some(k => keys.includes(k))) hit.add(muscle);
+  }
+  const has = (m) => hit.has(m);
+  const count = selectedKeys.length;
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // ── PATRICK ──────────────────────────────────────────────────────────────
+  if (profile === "Patrick") {
+    if (has("glutes") && has("posterior") && has("legs"))
+      return pick([
+        `Glutes, hammies, quads — the full posterior spectacular. The whole back half of this man is an event. An absolute event. 🍑`,
+        `Every single muscle behind Pat's centre of gravity just got trained. The rear view is becoming a masterpiece and we are not calm about it. 🍑`,
+        `Full back end loaded. Cheeks, hammies, quads. This is what peak construction looks like and it is looking GOOD from back here. 🍑`,
+        `The whole rear situation addressed in one session. Glutes up, hammies tight, legs strong. Somebody get this man a mirror that faces the other way. 🍑`,
+      ]);
+    if (has("glutes") && has("posterior"))
+      return pick([
+        `Glutes and hamstrings. The cheeks are lifted, the hammies are tight. The back half of Patrick is genuinely doing something to us. 🍑`,
+        `Posterior chain loaded. We are going to need a moment. The cheeks and the hammies together? In one session? Unhinged. 🍑`,
+        `Cheeks and hamstrings. The double threat. We're keeping it professional but we want to be clear that it is taking considerable effort. 🍑`,
+      ]);
+    if (has("glutes"))
+      return pick([
+        `Glutes done. The cheeks are being sculpted one rep at a time and we are watching with great interest. Great, barely professional interest. 🍑`,
+        `Glute session complete. Something incredible is being built back there. We don't want to be weird about it but we are a little bit weird about it. 🍑`,
+        `The posterior has clocked in, done the work, and clocked out looking better than when it arrived. Cheeks galore. Genuinely galore. 🍑`,
+        `Glutes trained. Pat is single-handedly making the case that the glute bridge is the most important exercise ever invented. The case is very compelling. 🍑`,
+      ]);
+    if (has("back") && has("arms") && has("shoulders"))
+      return pick([
+        `Back, arms, shoulders — ${count} exercises. Wide back, massive arms, boulder shoulders. The full intimidating package. Doors are nervous. 💪`,
+        `Rows, pulls, shoulders, biceps — ${count} exercises. The back is BROAD, the arms are THICK, the shoulders are ROUND. Capital letters are appropriate here.`,
+        `Upper body pull complete. ${count} exercises. The back is wide enough to block out the sun and the arms are not helping the situation at all. We love it. 💪`,
+        `${count} exercises. Wide back, thick arms, round shoulders. Walking into a room and immediately becoming the structural load-bearing wall. That's Pat now.`,
+      ]);
+    if (has("back") && has("arms"))
+      return pick([
+        `Back and arms — ${count} exercises. The back is getting wide and the arms are getting thick and together they are becoming someone's Roman Empire. 💪`,
+        `Rows and biceps. ${count} exercises. The back is broadening at a rate that should probably be reported to someone. The arms are complicit. 💪`,
+        `Pull session complete. ${count} exercises. Wide back, big arms. The kind of combination that makes strangers on the street do a little double take. Keep going.`,
+      ]);
+    if (has("back"))
+      return pick([
+        `Back session done. ${count} exercises building the kind of back that looks serious. It's getting there. Genuinely getting there.`,
+        `Rows, pulls, posterior chain — ${count} exercises. The back is responding. It's a slow burn but it's working.`,
+        `Back day in the books. ${count} exercises. The upper back is getting stronger and it's going to show. Give it time.`,
+      ]);
+    if (has("chest") && has("shoulders") && has("arms"))
+      return pick([
+        `Chest, shoulders, arms — ${count} exercises. Tickets to the gun show: SOLD OUT. The venue cannot hold what is happening here. 💪`,
+        `The full upper body push. ${count} exercises. The chest is full, the shoulders are ROUND, the arms are getting out of hand in the best possible way.`,
+        `Push day complete. ${count} exercises. The shirt is going to fit differently. Tighter in all the right places. Someone is going to notice. Multiple someones. 💪`,
+        `Chest, shoulders, triceps — ${count} exercises. Broad. Full. Overwhelming. The upper body of a man who has decided to be a lot and is succeeding enormously.`,
+        `${count} exercises. The chest is thick, the shoulders are huge, the arms are an ongoing situation. We are not complaining. We will never complain. 💪`,
+      ]);
+    if (has("chest") && has("arms"))
+      return pick([
+        `Chest and arms — ${count} exercises. Big chest, massive arms. The pythons are thriving and they've brought a friend. 💪`,
+        `${count} exercises. The arms are huge, the chest is full. Pat is becoming somebody's Roman Empire and he doesn't even know it. 💪`,
+        `Chest and biceps done. ${count} exercises. The guns are loaded and the chest is security. An absolutely unhinged combination. Well done. 💪`,
+      ]);
+    if (has("chest") && has("shoulders"))
+      return pick([
+        `Chest and shoulders — ${count} exercises. Wide, full, solid. The upper body is being sculpted whether it likes it or not.`,
+        `Push muscles sorted. ${count} exercises. Chest out, shoulders round. The classic silhouette is forming nicely.`,
+      ]);
+    if (has("legs") && !has("glutes"))
+      return pick([
+        `Leg session done. ${count} exercises. The quads and hamstrings are taken care of. The glutes were right there though. Just saying. 👀`,
+        `Legs trained. ${count} exercises. Good. The lower body is working. There were glute options available but no pressure. None at all. 🍑`,
+      ]);
+    if (has("core"))
+      return pick([
+        `Core session done. ${count} exercises quietly doing more for Pat's back than the physio he won't call. You're welcome, lower back.`,
+        `The deep stabilisers have been trained. ${count} exercises. Pat's core is getting serious. His golf swing will notice before he does.`,
+        `Core work done. ${count} exercises. The back is being protected from the inside. This is the invisible stuff that matters.`,
+      ]);
+    if (has("arms"))
+      return pick([
+        `Arms done. ${count} exercises. The pythons have been fed. They are enormous. Please do not make any sudden movements around them. 💪`,
+        `Biceps and triceps. ${count} exercises. Every t-shirt Pat owns just filed a noise complaint. The sleeves are not okay. They're thrilled, but they're not okay.`,
+        `${count} arm exercises. The guns are loaded, cocked, and pointed directly at anyone unfortunate enough to be in the vicinity. Incredible scenes. 💪`,
+        `Arms day. ${count} exercises. Big. Thick. Veiny in a way that means business. The arms are becoming a standalone attraction. 💪`,
+        `Curls and extensions. ${count} exercises. Pat's arms are growing so fast they've started sending rent demands to the rest of his body. 💪`,
+      ]);
+    return pick([
+      `${count} exercises done. Pat showed up, did the work, logged it. That's most of it right there.`,
+      `Session complete. ${count} exercises. Not bad for someone who is, statistically speaking, figuring it out in real time.`,
+      `${count} exercises logged. The routine is being built one session at a time. This one counts.`,
+    ]);
+  }
+
+  // ── GEORGIA ──────────────────────────────────────────────────────────────
+  if (sessionLabel.includes("Posture")) {
+    return pick([
+      `Posture day done. The thoracic work, the neck, the deep core — all the stuff that quietly fixes everything else. Not glamorous. Completely essential.`,
+      `Day 3 complete. Your skeleton is grateful even if your ego isn't. ${count} exercises that are doing the slow, invisible work. It's working.`,
+      `Posture and aesthetics session logged. The day most people skip. You didn't. That's the whole game right there.`,
+      `${count} exercises done. This is the session that fixes posture, addresses the rib flare, and builds the things that last. Unglamorous and excellent.`,
+    ]);
+  }
+  if (sessionLabel.includes("Pull") && has("back") && has("arms")) {
+    return pick([
+      `Pull day done. Rows, hamstrings, biceps, rear delts — ${count} exercises. The back of the body is getting serious. You'll feel it in the best way tomorrow.`,
+      `Back, arms, posterior chain — all covered. ${count} exercises. This is the session that changes your shape and your posture at the same time.`,
+      `Pull day complete. Every row is quietly pulling your shoulders back. Every rear delt rep is doing work you'll see in three weeks. ${count} exercises well spent.`,
+    ]);
+  }
+  if (sessionLabel.includes("Pull")) {
+    return pick([
+      `Pull day logged. The muscles that hold your posture together just got a lot stronger. ${count} exercises. Solid session.`,
+      `Day 2 done. Rows, hamstrings, the pulling muscles — ${count} exercises that are directly building the things your osteo is also working on. Double time.`,
+    ]);
+  }
+  if (sessionLabel.includes("Push") && has("glutes")) {
+    return pick([
+      `Push day with glutes — chest, shoulders, legs, and the glute activation that starts everything. ${count} exercises. Very well-rounded session.`,
+      `Day 1 complete. Upper body push, legs, glutes — ${count} exercises. That's an efficient session. The whole front and bottom half sorted.`,
+    ]);
+  }
+  if (sessionLabel.includes("Push")) {
+    return pick([
+      `Push day done. ${count} exercises — chest, shoulders, triceps, legs. The upper body push is sorted. You'll feel this tomorrow in the satisfying way.`,
+      `Day 1 complete. ${count} exercises. The push muscles are handled. Good session.`,
+    ]);
+  }
+  if (has("glutes") && has("posterior") && has("legs"))
+    return `Glutes, hamstrings, legs — the full lower body. ${count} exercises targeting the biggest muscles in the body. This is the session that changes your shape fastest.`;
+  if (has("glutes") && has("posterior"))
+    return pick([
+      `Glutes and hamstrings — the back of the body covered. ${count} exercises. The visible change happens here first.`,
+      `Posterior chain done. Glutes and hammies — ${count} exercises. The results from these show up before anything else.`,
+    ]);
+  if (has("back") && has("arms"))
+    return `Back and arms — ${count} exercises. The upper body pulling strength that shows up in posture before it shows up anywhere else.`;
+  if (has("core") && has("posture"))
+    return pick([
+      `Core and posture work done. ${count} exercises directly addressing the rib flare. Less exciting than squats. More important than squats.`,
+      `The deep core and posture session. ${count} exercises. Your osteo would absolutely approve. You did the thing.`,
+    ]);
+  if (has("shoulders"))
+    return `Shoulder session done. ${count} exercises. The lateral raises are doing more than you think — the definition shows up there first.`;
+  return pick([
+    `${count} exercises logged. Every session stacks. This one counts.`,
+    `Session done. ${count} exercises. Showed up, did the work. That's the whole thing.`,
+  ]);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOG PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+function LogPage({ profile, color, sessions, onSave }) {
+  const profileSessions = SESSIONS[profile];
+  const [selSession, setSelSession] = useState(null);
+  const [selected, setSelected]     = useState([]);
+  const [step, setStep]             = useState("pick");
+  const [feeling, setFeeling]       = useState(0);
+  const [note, setNote]             = useState("");
+  const [sets, setSets]             = useState({});
+  const [warned, setWarned]         = useState(false);
+  const [summary, setSummary]        = useState("");
+
+  const toggleEx = (key) => {
+    setSelected(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
+    setSets(prev => prev[key] ? prev : { ...prev, [key]: [{ reps: "", weight: "", time: "" }] });
+  };
+
+  const addSet    = (k) => setSets(p => ({ ...p, [k]: [...(p[k]||[]), { reps: "", weight: "", time: "" }] }));
+  const removeSet = (k, i) => setSets(p => ({ ...p, [k]: p[k].filter((_, j) => j !== i) }));
+  const upSet     = (k, i, f, v) => setSets(p => ({ ...p, [k]: p[k].map((s, j) => j === i ? { ...s, [f]: v } : s) }));
+
+  const reset = () => { setStep("pick"); setSelSession(null); setSelected([]); setSets({}); setFeeling(0); setNote(""); setWarned(false); setSummary(""); };
+
+  const goLog = () => {
+    const anyEmpty = selSession?.groups.some(g => g.exercises.filter(k => selected.includes(k)).length === 0);
+    if (anyEmpty && !warned) { setWarned(true); return; }
+    setStep("log");
+  };
+
+  const save = () => {
+    onSave({
+      id: Date.now(), date: todayStr(), profile, feeling, note,
+      sessionLabel: selSession?.label || "",
+      exercises: selected.filter(k => EX[k]).map(k => ({ name: EX[k].name, sets: sets[k] || [] })),
+    });
+    setSummary(getWorkoutSummary(selected, selSession?.label || "", profile));
+    setStep("done");
+  };
+
+  if (step === "done") return (
+    <div style={{ ...C.page, textAlign: "center", paddingTop: 60 }}>
+      <div style={{ fontSize: 52, marginBottom: 14 }}>✓</div>
+      <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: 26, marginBottom: 6 }}>Session saved</div>
+      <div style={{ color: "#aaa", fontSize: 14, marginBottom: 20 }}>Nice work, {profile}.</div>
+      {summary && (
+        <div style={{ background: "#fff", border: "1px solid #ebe8e3", borderRadius: 14, padding: "16px 18px", marginBottom: 28, textAlign: "left" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: color, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>What you did</div>
+          <div style={{ fontSize: 14, color: "#444", lineHeight: 1.6 }}>{summary}</div>
+        </div>
+      )}
+      <button style={{ ...C.btn(color), padding: "12px 28px" }} onClick={reset}>Log another</button>
+    </div>
+  );
+
+  if (step === "log") return (
+    <div style={C.page}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+        <button onClick={() => setStep("pick")} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#aaa", padding: 0 }}>←</button>
+        <div style={C.h1}>Log your sets</div>
+      </div>
+      <div style={{ fontSize: 12, color: "#aaa", marginBottom: 14 }}>{selected.length} exercises · tap ← to change</div>
+
+      <div style={C.card}>
+        <span style={C.label}>How are you feeling?</span>
+        <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+          {[1,2,3,4,5].map(n => (
+            <div key={n} onClick={() => setFeeling(n === feeling ? 0 : n)} style={{ width: 38, height: 38, borderRadius: "50%", border: `2px solid ${n <= feeling ? color : "#e0dcd6"}`, background: n <= feeling ? color : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 13, fontWeight: 600, color: n <= feeling ? "#fff" : "#ccc", transition: "all 0.15s" }}>{n}</div>
+          ))}
+          {feeling > 0 && <span style={{ fontSize: 12, color: "#999", marginLeft: 3 }}>{FEEL_LABELS[feeling]}</span>}
+        </div>
+      </div>
+
+      {selected.filter(k => EX[k]).map(k => {
+        const ex = EX[k];
+        const last = getLastWeight(sessions, profile, ex.name);
+        return (
+          <div key={k} style={C.card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 9 }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{ex.name}</div>
+                {last && <div style={{ fontSize: 11, color, marginTop: 2, fontWeight: 500 }}>Last: {last.weight}kg · {fmtDate(last.date)}</div>}
+              </div>
+              <button onClick={() => { setSelected(p => p.filter(x => x !== k)); }} style={{ background: "none", border: "none", color: "#ddd", fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+            {(() => {
+              const lt = logType(k);
+              return (<>
+                <div style={{ display: "grid", gridTemplateColumns: lt === "weighted" ? "26px 1fr 1fr 22px" : "26px 1fr 22px", gap: 6, marginBottom: 4 }}>
+                  <span/>
+                  {lt === "time"     && <span style={{ fontSize: 10, color: "#b0aba4", fontWeight: 700 }}>SECONDS</span>}
+                  {lt === "reps"     && <span style={{ fontSize: 10, color: "#b0aba4", fontWeight: 700 }}>REPS</span>}
+                  {lt === "weighted" && <><span style={{ fontSize: 10, color: "#b0aba4", fontWeight: 700 }}>REPS</span><span style={{ fontSize: 10, color: "#b0aba4", fontWeight: 700 }}>KG</span></>}
+                  <span/>
+                </div>
+                {(sets[k] || [{ reps:"", weight:"", time:"" }]).map((s, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: lt === "weighted" ? "26px 1fr 1fr 22px" : "26px 1fr 22px", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                    <div style={{ fontSize: 11, color: "#bbb", fontWeight: 600, textAlign: "center" }}>{lt === "time" ? `H${i+1}` : `S${i+1}`}</div>
+                    {lt === "time"     && <input style={C.input} type="number" inputMode="numeric" placeholder="30" value={s.time} onChange={e => upSet(k,i,"time",e.target.value)} />}
+                    {lt === "reps"     && <input style={C.input} type="number" inputMode="numeric" placeholder="12" value={s.reps} onChange={e => upSet(k,i,"reps",e.target.value)} />}
+                    {lt === "weighted" && <><input style={C.input} type="number" inputMode="numeric" placeholder="12" value={s.reps} onChange={e => upSet(k,i,"reps",e.target.value)} /><input style={C.input} type="number" inputMode="decimal" placeholder="20" value={s.weight} onChange={e => upSet(k,i,"weight",e.target.value)} /></>}
+                    <button onClick={() => removeSet(k,i)} style={{ background:"none", border:"none", color:"#ddd", fontSize:15, cursor:"pointer" }}>×</button>
+                  </div>
+                ))}
+              </>);
+            })()}
+            <button onClick={() => addSet(k)} style={{ ...C.btn(color,true), fontSize:12, padding:"6px 12px", marginTop:2 }}>+ set</button>
+          </div>
+        );
+      })}
+
+      <div style={C.card}>
+        <span style={C.label}>Session note (optional)</span>
+        <textarea style={{ ...C.input, minHeight: 64, resize: "none" }} placeholder="Felt strong today..." value={note} onChange={e => setNote(e.target.value)} />
+      </div>
+      <button style={{ ...C.btn(color), width: "100%", padding: "14px", fontSize: 15 }} onClick={save}>Save session</button>
+    </div>
+  );
+
+  return (
+    <div style={C.page}>
+      <WeekStrip sessions={sessions} profile={profile} color={color} />
+      <div style={C.h1}>Today's workout</div>
+      <div style={C.sub}>Choose your session then pick your exercises</div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {profileSessions.map(s => (
+          <div key={s.id} onClick={() => { setSelSession(s); setSelected([]); setWarned(false); }}
+            style={{ flex: 1, padding: "11px 10px", borderRadius: 12, border: `1.5px solid ${selSession?.id === s.id ? color : "#ebe8e3"}`, background: selSession?.id === s.id ? color + "10" : "#fff", cursor: "pointer", transition: "all 0.15s" }}>
+            <div style={{ fontWeight: 600, fontSize: 12, color: selSession?.id === s.id ? color : "#444" }}>{s.label}</div>
+            <div style={{ fontSize: 10, color: "#aaa", marginTop: 3, lineHeight: 1.3 }}>{s.description}</div>
+          </div>
+        ))}
+      </div>
+
+      {selSession && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: "#888" }}>{selSession.targetCount}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color }}>{selected.length} exercise{selected.length !== 1 ? "s" : ""}</div>
+          </div>
+
+          {warned && (
+            <div style={{ background: "#fff8e6", border: "1px solid #f0c040", borderRadius: 10, padding: "10px 13px", marginBottom: 12, fontSize: 13, color: "#b07c00" }}>
+              ⚠ You've skipped some groups — that's okay! Tap "Log sets" again to continue anyway.
+            </div>
+          )}
+
+          {selSession.groups.map((g, i) => (
+            <GroupCard key={i} group={g} color={color} selected={selected} onToggle={toggleEx} sessions={sessions} profile={profile} warn={warned} />
+          ))}
+
+          <div style={{ height: 80 }} />
+          <div style={{ position: "fixed", bottom: 68, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 28px)", maxWidth: 412, background: color, borderRadius: 14, padding: "13px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 40, boxShadow: "0 6px 28px rgba(0,0,0,0.18)" }}>
+            <div style={{ color: "#fff", fontSize: 13 }}><span style={{ fontWeight: 700 }}>{selected.length}</span> exercise{selected.length !== 1 ? "s" : ""} selected</div>
+            <button onClick={goLog} style={{ background: "#fff", color, border: "none", borderRadius: 9, padding: "8px 16px", fontFamily: "'DM Sans',sans-serif", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>Log sets →</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HISTORY PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+function HistoryPage({ profile, color, sessions, onUpdate, onDelete }) {
+  const mine = sessions.filter(s => s.profile === profile).sort((a,b) => b.date.localeCompare(a.date));
+  const [editing, setEditing] = useState(null);
+  const [editNote, setEditNote] = useState("");
+
+  return (
+    <div style={C.page}>
+      <div style={C.h1}>History</div>
+      <div style={C.sub}>{profile}'s sessions</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9, marginBottom: 16 }}>
+        {[{ val: getStreak(mine), label: "day streak", suf: "🔥" }, { val: mine.length, label: "sessions" }, { val: mine.filter(s => s.feeling >= 4).length, label: "great days" }].map(({ val, label, suf }) => (
+          <div key={label} style={{ ...C.card, textAlign: "center", padding: "12px 8px", marginBottom: 0 }}>
+            <div style={{ fontSize: 27, fontWeight: 300, color, lineHeight: 1 }}>{val}{suf||""}</div>
+            <div style={{ fontSize: 11, color: "#bbb", marginTop: 3 }}>{label}</div>
+          </div>
+        ))}
+      </div>
+      {mine.length === 0 && <div style={{ textAlign: "center", color: "#ccc", fontSize: 14, marginTop: 50 }}>No sessions yet!</div>}
+      {mine.map(s => (
+        <div key={s.id} style={C.card}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{fmtDate(s.date)}{s.sessionLabel ? ` · ${s.sessionLabel}` : ""}</div>
+              <div style={{ fontSize: 12, color: "#aaa", marginTop: 1 }}>{s.exercises?.length || 0} exercises</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {s.feeling > 0 && <div style={{ background: color+"20", color, borderRadius: 6, padding: "3px 8px", fontSize: 11, fontWeight: 600 }}>{FEEL_LABELS[s.feeling]}</div>}
+              <button onClick={() => { setEditing(s.id); setEditNote(s.note||""); }} style={{ background:"none", border:"none", fontSize:14, cursor:"pointer", color:"#bbb" }}>✎</button>
+              <button onClick={() => { if(window.confirm("Delete this session?")) onDelete(s.id); }} style={{ background:"none", border:"none", fontSize:17, cursor:"pointer", color:"#ddd" }}>×</button>
+            </div>
+          </div>
+          {s.exercises?.map(ex => (
+            <div key={ex.name} style={{ marginBottom: 7 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{ex.name}</div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {ex.sets?.filter(s => s.reps||s.weight).map((set,i) => (
+                  <div key={i} style={{ background: "#f5f2ee", borderRadius: 6, padding: "3px 8px", fontSize: 12, color: "#666" }}>
+                    S{i+1}: {[set.time&&`${set.time}s`, set.reps&&`${set.reps}r`, set.weight&&`${set.weight}kg`].filter(Boolean).join(" · ")}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {editing === s.id ? (
+            <div style={{ borderTop: "1px solid #f0ece7", paddingTop: 9, marginTop: 6 }}>
+              <textarea style={{ ...C.input, minHeight: 56, resize: "none", marginBottom: 7 }} value={editNote} onChange={e => setEditNote(e.target.value)} />
+              <div style={{ display: "flex", gap: 7 }}>
+                <button style={{ ...C.btn(color), fontSize:12, padding:"7px 13px" }} onClick={() => { onUpdate({...s, note:editNote}); setEditing(null); }}>Save</button>
+                <button style={{ ...C.btn("#aaa",true), fontSize:12, padding:"7px 13px" }} onClick={() => setEditing(null)}>Cancel</button>
+              </div>
+            </div>
+          ) : s.note ? (
+            <div style={{ fontSize:12, color:"#999", borderTop:"1px solid #f5f2ee", paddingTop:7, marginTop:5, fontStyle:"italic" }}>"{s.note}"</div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROGRESS PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+function ProgressPage({ profile, color, sessions }) {
+  const mine = sessions.filter(s => s.profile === profile);
+  const allEx = [...new Set(mine.flatMap(s => s.exercises?.map(e => e.name) || []))];
+  const [selEx, setSelEx] = useState(allEx[0]||"");
+  useEffect(() => { if (allEx.length && !allEx.includes(selEx)) setSelEx(allEx[0]); }, [mine.length]);
+
+  const chartData = useMemo(() => {
+    if (!selEx) return [];
+    return mine.filter(s => s.exercises?.find(e => e.name===selEx)).map(s => {
+      const ex = s.exercises.find(e => e.name===selEx);
+      const maxW = Math.max(...(ex.sets||[]).map(s => parseFloat(s.weight)||0));
+      return { date: s.date, weight: maxW };
+    }).sort((a,b) => a.date.localeCompare(b.date));
+  }, [selEx, sessions]);
+
+  const valid = chartData.filter(d => d.weight>0);
+  const maxW = valid.length ? Math.max(...valid.map(d=>d.weight)) : 1;
+  const minW = valid.length ? Math.min(...valid.map(d=>d.weight)) : 0;
+  const range = maxW-minW||1;
+  const pbs = allEx.map(name => {
+    const ws = mine.flatMap(s => s.exercises?.filter(e=>e.name===name).flatMap(e=>e.sets?.map(s=>parseFloat(s.weight)||0)||[])||[]).filter(w=>w>0);
+    return ws.length ? { name, pb: Math.max(...ws) } : null;
+  }).filter(Boolean).sort((a,b)=>b.pb-a.pb);
+
+  return (
+    <div style={C.page}>
+      <div style={C.h1}>Progress</div>
+      <div style={C.sub}>{profile}'s stats</div>
+      {allEx.length===0 && <div style={{ textAlign:"center", color:"#ccc", fontSize:14, marginTop:50 }}>Log sessions to see progress here.</div>}
+      {allEx.length>0 && (
+        <>
+          <div style={{ display:"flex", gap:7, overflowX:"auto", paddingBottom:10, marginBottom:12, scrollbarWidth:"none" }}>
+            {allEx.map(e => <div key={e} onClick={()=>setSelEx(e)} style={{ padding:"6px 13px", borderRadius:20, border:`1.5px solid ${selEx===e?color:"#e0dcd6"}`, background:selEx===e?color:"#fff", color:selEx===e?"#fff":"#777", fontSize:12, fontWeight:selEx===e?600:400, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>{e}</div>)}
+          </div>
+          <div style={C.card}>
+            <div style={{ fontWeight:600, fontSize:14, marginBottom:2 }}>{selEx}</div>
+            <div style={{ fontSize:12, color:"#aaa", marginBottom:14 }}>Max weight per session (kg)</div>
+            {valid.length<2 ? <div style={{ color:"#ccc", fontSize:13 }}>Log at least 2 sessions with this exercise to see a chart.</div> : (
+              <>
+                <svg width="100%" height="120" viewBox="0 0 320 120" preserveAspectRatio="none" style={{ overflow:"visible", display:"block" }}>
+                  <defs><linearGradient id={`g${profile}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.12"/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs>
+                  {[0,0.5,1].map(t=><line key={t} x1="0" y1={8+(1-t)*95} x2="320" y2={8+(1-t)*95} stroke="#f0ece7" strokeWidth="1"/>)}
+                  {(()=>{
+                    const pts=valid.map((d,i)=>({x:10+(i/(valid.length-1))*300,y:8+(1-(d.weight-minW)/range)*95,d}));
+                    const line=pts.map((p,i)=>`${i===0?"M":"L"}${p.x},${p.y}`).join(" ");
+                    return(<><path d={line+` L${pts[pts.length-1].x},103 L${pts[0].x},103 Z`} fill={`url(#g${profile})`}/><path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>{pts.map((p,i)=><g key={i}><circle cx={p.x} cy={p.y} r="5" fill={color} stroke="#fff" strokeWidth="2"/><text x={p.x} y={p.y-9} textAnchor="middle" fontSize="10" fill={color} fontFamily="DM Sans,sans-serif" fontWeight="600">{p.d.weight}kg</text></g>)}</>);
+                  })()}
+                </svg>
+                <div style={{ display:"flex", justifyContent:"space-between", marginTop:4 }}>
+                  {valid.map((d,i)=><div key={i} style={{ fontSize:10, color:"#bbb" }}>{fmtDate(d.date)}</div>)}
+                </div>
+              </>
+            )}
+          </div>
+          <div style={C.card}>
+            <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>Feeling over time</div>
+            <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", paddingBottom:2 }}>
+              {mine.filter(s=>s.feeling>0).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10).map(s=>(
+                <div key={s.id} style={{ textAlign:"center", minWidth:40 }}>
+                  <div style={{ width:32, height:32, borderRadius:"50%", background:color, opacity:0.15+s.feeling*0.17, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, color, fontSize:12, margin:"0 auto 3px" }}>{s.feeling}</div>
+                  <div style={{ fontSize:10, color:"#bbb" }}>{fmtDate(s.date)}</div>
+                </div>
+              ))}
+              {mine.filter(s=>s.feeling>0).length===0 && <div style={{ color:"#ccc", fontSize:13 }}>Rate sessions to see this.</div>}
+            </div>
+          </div>
+          {pbs.length>0 && (
+            <div style={C.card}>
+              <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>Personal bests 🏆</div>
+              {pbs.map(({name,pb})=>(
+                <div key={name} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom:"1px solid #f5f2ee" }}>
+                  <div style={{ fontSize:13, color:"#555" }}>{name}</div>
+                  <div style={{ fontWeight:700, color, fontSize:14 }}>{pb}kg</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APP ROOT
+// ─────────────────────────────────────────────────────────────────────────────
+const NAV = [{ id:"log", label:"Workout", icon:"⊕" }, { id:"history", label:"History", icon:"◷" }, { id:"progress", label:"Progress", icon:"↗" }];
+
+function App() {
+  const [profile, setProfile] = useState(() => storage.get("lc_profile") || "Patrick");
+  const [tab, setTab]         = useState("log");
+  const [sessions, setSessions] = useState(() => storage.get("lc_sessions") || []);
+  const color = COLORS[profile];
+  useEffect(() => { storage.set("lc_profile", profile); }, [profile]);
+  useEffect(() => { storage.set("lc_sessions", sessions); }, [sessions]);
+  const saveSession   = s => setSessions(p => [...p, s]);
+  const updateSession = u => setSessions(p => p.map(s => s.id===u.id ? u : s));
+  const deleteSession = id => setSessions(p => p.filter(s => s.id!==id));
+
+  return (
+    <div style={C.app}>
+      <div style={C.header}>
+        <p style={C.logo}>LIFT<span style={{ fontStyle:"italic", color }}>co</span></p>
+        <div style={C.profRow}>
+          {["Patrick","Georgia"].map(p => <button key={p} style={C.profBtn(profile===p, COLORS[p])} onClick={()=>setProfile(p)}>{p}</button>)}
+        </div>
+      </div>
+      {tab==="log"      && <LogPage      key={`log-${profile}`}  profile={profile} color={color} sessions={sessions} onSave={saveSession} />}
+      {tab==="history"  && <HistoryPage  key={`hist-${profile}`} profile={profile} color={color} sessions={sessions} onUpdate={updateSession} onDelete={deleteSession} />}
+      {tab==="progress" && <ProgressPage key={`prog-${profile}`} profile={profile} color={color} sessions={sessions} />}
+      <nav style={C.nav}>
+        {NAV.map(n => (
+          <button key={n.id} style={C.navBtn(tab===n.id)} onClick={()=>setTab(n.id)}>
+            <span style={{ fontSize:19 }}>{n.icon}</span><span>{n.label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
