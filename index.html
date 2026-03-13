@@ -1280,5 +1280,45 @@ function App() {
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
+  <!-- Your other HTML content (like div for progressList, input, button) -->
+
+<!-- Firebase SDKs - These should go BEFORE your custom script -->
+<!-- For single-file HTML, use the "compat" libraries -->
+<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
+<!-- If you also want Analytics, include this one too -->
+<script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-analytics-compat.js"></script>
+
+
+<script>
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyAtcHq3vJWMZCTNYR9PsZhDYOxnELlzxcg",
+    authDomain: "liftco-a2f87.firebaseapp.com",
+    // !!! IMPORTANT: Add your databaseURL here for Realtime Database !!!
+    databaseURL: "https://liftco-a2f87-default-rtdb.firebaseio.com", // REPLACE WITH YOUR ACTUAL databaseURL
+    projectId: "liftco-a2f87",
+    storageBucket: "liftco-a2f87.firebasestorage.app",
+    messagingSenderId: "998949377084",
+    appId: "1:998949377084:web:5bbf5c8f65d3a73f43df39",
+    measurementId: "G-QWWZ9F5JBS"
+  };
+
+  // Initialize Firebase
+  const app = firebase.initializeApp(firebaseConfig);
+
+  // Initialize Realtime Database
+  const database = firebase.database();
+
+  // Initialize Analytics (optional, if you want it)
+  const analytics = firebase.analytics();
+
+  // --- NOW YOU CAN START ADDING YOUR CODE TO INTERACT WITH THE DATABASE ---
+  // Like the addGymProgress and listenForGymProgress functions I showed you before.
+
+</script>
+</body>
+</html>
+
 </body>
 </html>
