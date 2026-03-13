@@ -275,7 +275,14 @@ function weekDaysFrom(anchorStr = todayStr()) {
   const anchor = new Date(anchorStr + "T00:00:00");
   anchor.setHours(0,0,0,0);
   const mon = new Date(anchor);
-  mon.setDate(anchor.getDate() - ((anchor.getDay() + 6) % 7));
+  const melbourneDay = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Melbourne",
+  weekday: "short"
+}).formatToParts(anchor).find(p => p.type === "weekday").value;
+
+const dayMap = { Mon:0, Tue:1, Wed:2, Thu:3, Fri:4, Sat:5, Sun:6 };
+
+mon.setDate(anchor.getDate() - dayMap[melbourneDay]);
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(mon);
     d.setDate(mon.getDate() + i);
