@@ -82,6 +82,7 @@ const EX = {
   singleLegRDL:    { name: "Single Leg RDL", cues: ["Push hips back — don't just lean forward", "Keep hips square — hardest part", "Soft bend in standing leg", "Dumbbell in opposite hand to working leg"], mechanics: "Fully unilateral hip hinge.", result: "Builds strong posterior chain and fixes left-right imbalances. Great for posture." },
 
   // LEGS
+  legExtension: {name: "Leg Extension", cues: ["Knees line up with machine pivot point", "Lift with control — don't swing the weight", "Squeeze quads hard at the top for 1 sec", "Lower slowly — don't let the stack slam down", "Use full range that feels good on the knees"], mechanics: "Open-chain quad isolation through knee extension.", result: "Directly builds quad strength and definition without loading the spine."},
   bulgSplitSquat:  { name: "Bulgarian Split Squat", cues: ["Front foot far enough — shin vertical at bottom", "3 sec lowering", "Torso upright throughout", "Drive through front heel to stand", "Moderate weight, 12–15 reps"], mechanics: "Unilateral squat — high glute and quad demand.", result: "One of the best leg shapers. Builds strength without spinal load." },
   reverseLunge:    { name: "Reverse Lunge", cues: ["Step back — front heel stays planted", "Front knee tracks over second toe", "Keep torso tall", "Drive through front heel to return"], mechanics: "Posterior-dominant lunge — more glute, less quad.", result: "Shapes glute and thigh without knee stress or quad bulk." },
   stepUp:          { name: "Step Up", cues: ["Whole foot on box", "Drive through heel of raised leg — it does all the work", "Don't push off the back foot", "Stand tall at top before stepping down"], mechanics: "Single-leg press from a step.", result: "Builds glute and quad strength with great real-world carry-over." },
@@ -95,6 +96,7 @@ const EX = {
   lateralLunge:    { name: "Lateral Lunge", cues: ["Step wide, sit into that hip", "Straight leg stays extended, toes forward", "Chest tall, weight in bent heel", "Drive back through bent leg"], mechanics: "Frontal plane — inner thigh and glute medius.", result: "Targets inner thigh and outer hip — a gap most programs miss." },
 
   // CHEST & PUSH
+  dbChestPress:    {name: "Dumbbell Chest Press", cues: ["Feet planted firmly on floor", "Lower dumbbells to chest level with elbows ~45° from body", "Press up and slightly inward at the top", "Shoulder blades pinned to bench throughout", "Control the lowering — 3 sec down"], mechanics: "Horizontal press using independent arms — chest, anterior delts, triceps.", result: "Builds chest strength and symmetry while being more shoulder-friendly than barbell pressing."},
   chestPress:      { name: "Chest Press", cues: ["Lower to chest — full range every rep", "Press up and slightly in at top", "Shoulder blades set back and down before you lift", "3 sec lowering", "Increase weight when 12 reps feels easy"], mechanics: "Horizontal push — pec major and anterior delt.", result: "Develops the chest for a fuller, defined upper body." },
   pushUp:          { name: "Push Up", cues: ["Body one straight line — no sagging hips", "Lower chest to floor — full range", "Push floor away — spread the ground", "Shoulders packed down — don't shrug into neck", "Modify: hands on bench. Progress: feet elevated or weighted"], mechanics: "Bodyweight horizontal press with core integration.", result: "Builds chest, shoulder and tricep simultaneously while training core stability." },
   inclinePress:    { name: "Incline Dumbbell Press", cues: ["30–45° incline only — not too steep", "Lower to upper chest — full range", "Pack shoulders away from ears before pressing", "Control the descent — 3 sec down"], mechanics: "Inclined press — upper pec and anterior delt.", result: "Builds upper chest fullness for a defined collarbone-to-chest line." },
@@ -113,6 +115,7 @@ const EX = {
   dbRow:           { name: "Dumbbell Row", cues: ["Knee and hand on bench for support", "Drive elbow back and up past ribs", "Full stretch at bottom, full squeeze at top", "Shoulders DOWN — don't shrug into the pull", "Increase weight when 10 reps feels easy"], mechanics: "Unilateral horizontal pull — mid/upper trap, lats.", result: "Builds upper back thickness and pulls shoulders into correct alignment." },
   inclineRow:      { name: "Incline Dumbbell Row", cues: ["Chest fully against incline pad", "Lead with elbow — not the wrist", "Full stretch at bottom, full squeeze at top", "Shoulders packed throughout — no shrugging"], mechanics: "Supported horizontal pull — no momentum possible.", result: "Develops upper back without cheating — directly improves shoulder position." },
   facePull:        { name: "Face Pull", cues: ["Rope at face height", "Pull to face — thumbs end up behind ears", "Elbows high and wide at the end", "Don't jut head forward to meet the rope", "Upper traps relaxed throughout"], mechanics: "External rotation + rear delt — rotator cuff health.", result: "Keeps shoulders healthy long term. Essential for anyone doing heavy pressing." },
+  singleArmCableRowRotation: {name: "Single-Arm Cable Row (Rotation)", cues: ["Set up in split stance with inside foot forward", "Reach and let shoulder blade protract slightly at the start", "Row with one arm while rotating through upper back", "Finish tall through chest — don't yank with the arm", "Control the return and unwind slowly"], mechanics: "Single-arm row combined with controlled thoracic rotation.", result: "Builds upper-back strength while improving rotational control and thoracic movement."},
 
   // SHOULDERS
   latRaise:        { name: "Lateral Raise", cues: ["Slight forward lean, thumbs slightly down", "Lead with elbows — not hands", "Stop at shoulder height — no higher", "Upper traps stay DOWN throughout", "Light to moderate weight, full control"], mechanics: "Medial deltoid isolation.", result: "Builds the shoulder cap — key to that strong, defined shoulder silhouette." },
@@ -224,35 +227,33 @@ const SESSIONS = {
     },
   ],
   Patrick: [
-    {
-      id: "p-a", label: "Session A · Push + Legs",
-      description: "Chest, shoulders, triceps, legs, core",
-      targetCount: "6–8 exercises · aim for 60 min",
-      groups: [
-        { label: "Chest — pick 1", type: "pick", pick: 1, exercises: ["benchPress", "chestPress", "inclinePress", "pushUp"] },
-        { label: "Shoulders — pick 1 or 2", type: "pick", pick: 2, exercises: ["ohp", "arnoldPress", "latRaise", "facePull"] },
-        { label: "Triceps — pick 1", type: "pick", pick: 1, exercises: ["tricepPushdown", "closeGripBench", "ohTricep", "tricepExt"] },
-        { label: "Legs — pick 1 or 2", type: "pick", pick: 2, exercises: ["barbellSquat", "legPress", "bulgSplitSquat", "gobletSquat", "reverseLunge"] },
-        { label: "Posterior chain — pick 1", type: "pick", pick: 1, exercises: ["rdl", "gluteBridge", "goodMorning"] },
-        { label: "Core — pick any", type: "pick", pick: 4, exercises: ["sidePlank", "kneePlank", "reverseCrunch", "fourPointHover"] },
-      ],
-    },
-    {
-      id: "p-b", label: "Session B · Pull + Back",
-      description: "Back, rows, pull ups, biceps, hamstrings",
-      targetCount: "6–8 exercises · aim for 60 min",
-      groups: [
-        { label: "Roman chair", type: "pick", pick: 1, exercises: ["romanChair"] },
-        { label: "Vertical pull — pick 1", type: "pick", pick: 1, exercises: ["latPulldown", "trxPullUp"] },
-        { label: "Rows — pick 1 or 2", type: "pick", pick: 2, exercises: ["barbellRow", "seatedRow", "dbRow", "inclineRow", "cablePullover"] },
-        { label: "Rear delts + upper back — pick 1 or both", type: "pick", pick: 2, exercises: ["facePull", "rearDeltFly"] },
-        { label: "Biceps — pick 1", type: "pick", pick: 1, exercises: ["bicepCurl", "hammerCurl", "inclineCurl", "cableCurl"] },
-        { label: "Hamstrings — pick 1", type: "pick", pick: 1, exercises: ["rdl", "legCurl", "singleLegRDL", "goodMorning"] },
-        { label: "Core — pick any", type: "pick", pick: 5, exercises: ["sidePlank", "kneePlank", "reverseCrunch", "fourPointHover", "abWheel"] },
-      ],
-    },
+{
+  id: "p-a", label: "Session A · Push + Legs",
+  description: "Chest, shoulders, triceps, legs, core",
+  targetCount: "6–8 exercises · aim for 60 min",
+  groups: [
+    { label: "Chest — pick 1", type: "pick", pick: 1, exercises: ["benchPress", "dbChestPress", "chestPress", "inclinePress", "pushUp"] },
+    { label: "Shoulders — pick 1 or 2", type: "pick", pick: 2, exercises: ["ohp", "arnoldPress", "latRaise", "facePull"] },
+    { label: "Triceps — pick 1", type: "pick", pick: 1, exercises: ["tricepPushdown", "closeGripBench", "ohTricep", "tricepExt"] },
+    { label: "Legs — pick 1 or 2", type: "pick", pick: 2, exercises: ["barbellSquat", "legPress", "legExtension", "bulgSplitSquat", "gobletSquat", "reverseLunge"] },
+    { label: "Posterior chain — pick 1", type: "pick", pick: 1, exercises: ["rdl", "gluteBridge", "goodMorning"] },
+    { label: "Core — pick any", type: "pick", pick: 4, exercises: ["sidePlank", "kneePlank", "reverseCrunch", "fourPointHover", "cableWoodchop", "halfKneelingLift"] },
   ],
-};
+},
+    {
+  id: "p-b", label: "Session B · Pull + Back",
+  description: "Back, rows, pull ups, biceps, hamstrings",
+  targetCount: "6–8 exercises · aim for 60 min",
+  groups: [
+    { label: "Roman chair", type: "pick", pick: 1, exercises: ["romanChair"] },
+    { label: "Vertical pull — pick 1", type: "pick", pick: 1, exercises: ["latPulldown", "trxPullUp"] },
+    { label: "Rows — pick 1 or 2", type: "pick", pick: 2, exercises: ["barbellRow", "seatedRow", "dbRow", "inclineRow", "singleArmCableRowRotation", "cablePullover"] },
+    { label: "Rear delts + upper back — pick 1 or both", type: "pick", pick: 2, exercises: ["facePull", "rearDeltFly"] },
+    { label: "Biceps — pick 1", type: "pick", pick: 1, exercises: ["bicepCurl", "hammerCurl", "inclineCurl", "cableCurl"] },
+    { label: "Hamstrings — pick 1", type: "pick", pick: 1, exercises: ["rdl", "legCurl", "singleLegRDL", "goodMorning"] },
+    { label: "Core — pick any", type: "pick", pick: 5, exercises: ["sidePlank", "kneePlank", "reverseCrunch", "fourPointHover", "abWheel", "cableWoodchop", "halfKneelingLift"] },
+  ],
+},
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -581,7 +582,16 @@ const MUSCLE_MAP = {
 
 function getWorkoutSummary(selectedKeys, sessionLabel, profile) {
   const hit = new Set();
-  for (const [muscle, keys] of Object.entries(MUSCLE_MAP)) {
+  for (const [muscle, keys] of Object.entries(glutes:    ["gluteBridge","cableKickback","bandedClamshell","sumoSquat","kneelSquat","bulgSplitSquat","reverseLunge","stepUp","lateralLunge"],
+  posterior: ["rdl","splitRDL","singleLegRDL","legCurl","romanChair","goodMorning"],
+  back:      ["seatedRow","standingCableRow","trxPullUp","latPulldown","cablePullover","barbellRow","dbRow","inclineRow","singleArmCableRowRotation"],
+  chest:     ["chestPress","pushUp","inclinePress","benchPress","cableFly","dbChestPress"],
+  shoulders: ["latRaise","cableLatRaise","rearDeltFly","facePull","reversePecDeck","arnoldPress","bandPullApart","ohp","ohpSingleArm"],
+  arms:      ["bicepCurl","cableCurl","inclineCurl","hammerCurl","tricepExt","tricepPushdown","ohTricep","tricepKickback","closeGripBench"],
+  legs:      ["barbellSquat","gobletSquat","legPress","sitToStand","calfSeated","calfStanding","legExtension"],
+  core:      ["sidePlank","kneePlank","reverseCrunch","fourPointHover","abWheel","deadBug","hollowBody","pallofPress","cableWoodchop","halfKneelingLift"],
+  posture:   ["chinTuck","upperTrapStretch","thoracicRoller","threadNeedle","serratusSlide","breathing9090","wallAngels"],
+};)) {
     if (selectedKeys.some(k => keys.includes(k))) hit.add(muscle);
   }
   const has = (m) => hit.has(m);
