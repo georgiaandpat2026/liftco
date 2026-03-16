@@ -117,6 +117,9 @@ const EX = {
   facePull:        { name: "Face Pull", cues: ["Rope at face height", "Pull to face — thumbs end up behind ears", "Elbows high and wide at the end", "Don't jut head forward to meet the rope", "Upper traps relaxed throughout"], mechanics: "External rotation + rear delt — rotator cuff health.", result: "Keeps shoulders healthy long term. Essential for anyone doing heavy pressing." },
   singleArmCableRowRotation: {name: "Single-Arm Cable Row (Rotation)", cues: ["Set up in split stance with inside foot forward", "Reach and let shoulder blade protract slightly at the start", "Row with one arm while rotating through upper back", "Finish tall through chest — don't yank with the arm", "Control the return and unwind slowly"], mechanics: "Single-arm row combined with controlled thoracic rotation.", result: "Builds upper-back strength while improving rotational control and thoracic movement."},
 
+  cableWoodchop:   { name: "Cable Woodchop", cues: ["Set cable around chest to shoulder height", "Brace before you move — rotate through ribs, not hips only", "Pull across body in a smooth arc", "Control the return — don't let the cable yank you back"], mechanics: "Rotational core work against cable resistance.", result: "Builds rotational strength and trunk control for sport and everyday movement." },
+  halfKneelingLift:{ name: "Half-Kneeling Cable Lift", cues: ["Set up in half-kneeling with inside knee down", "Brace glute on the down knee side", "Lift cable up and across without arching your back", "Move slowly and stay tall through the torso"], mechanics: "Diagonal anti-rotation and lift pattern for core and shoulder integration.", result: "Improves core control, trunk stability, and coordinated upper-body power." },
+
   // SHOULDERS
   latRaise:        { name: "Lateral Raise", cues: ["Slight forward lean, thumbs slightly down", "Lead with elbows — not hands", "Stop at shoulder height — no higher", "Upper traps stay DOWN throughout", "Light to moderate weight, full control"], mechanics: "Medial deltoid isolation.", result: "Builds the shoulder cap — key to that strong, defined shoulder silhouette." },
   cableLatRaise:   { name: "Cable Lateral Raise", cues: ["Cable at ankle height, pull across body and up", "Lead with elbow throughout", "Upper traps completely relaxed — don't shrug into it", "Slow on the way down — resist the cable"], mechanics: "Medial delt with constant cable tension.", result: "More precise shoulder shaping than dumbbells — cable keeps tension where it matters." },
@@ -254,6 +257,8 @@ const SESSIONS = {
     { label: "Core — pick any", type: "pick", pick: 5, exercises: ["sidePlank", "kneePlank", "reverseCrunch", "fourPointHover", "abWheel", "cableWoodchop", "halfKneelingLift"] },
   ],
 },
+  ],
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -582,16 +587,7 @@ const MUSCLE_MAP = {
 
 function getWorkoutSummary(selectedKeys, sessionLabel, profile) {
   const hit = new Set();
-  for (const [muscle, keys] of Object.entries(glutes:    ["gluteBridge","cableKickback","bandedClamshell","sumoSquat","kneelSquat","bulgSplitSquat","reverseLunge","stepUp","lateralLunge"],
-  posterior: ["rdl","splitRDL","singleLegRDL","legCurl","romanChair","goodMorning"],
-  back:      ["seatedRow","standingCableRow","trxPullUp","latPulldown","cablePullover","barbellRow","dbRow","inclineRow","singleArmCableRowRotation"],
-  chest:     ["chestPress","pushUp","inclinePress","benchPress","cableFly","dbChestPress"],
-  shoulders: ["latRaise","cableLatRaise","rearDeltFly","facePull","reversePecDeck","arnoldPress","bandPullApart","ohp","ohpSingleArm"],
-  arms:      ["bicepCurl","cableCurl","inclineCurl","hammerCurl","tricepExt","tricepPushdown","ohTricep","tricepKickback","closeGripBench"],
-  legs:      ["barbellSquat","gobletSquat","legPress","sitToStand","calfSeated","calfStanding","legExtension"],
-  core:      ["sidePlank","kneePlank","reverseCrunch","fourPointHover","abWheel","deadBug","hollowBody","pallofPress","cableWoodchop","halfKneelingLift"],
-  posture:   ["chinTuck","upperTrapStretch","thoracicRoller","threadNeedle","serratusSlide","breathing9090","wallAngels"],
-};)) {
+  for (const [muscle, keys] of Object.entries(MUSCLE_MAP)) {
     if (selectedKeys.some(k => keys.includes(k))) hit.add(muscle);
   }
   const has = (m) => hit.has(m);
